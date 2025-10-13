@@ -48,19 +48,27 @@ if page == "Home":
 # History Page
 # ==========================
 elif page == "History":
-    st.title("📊 MFC History: Data Exploration & Univariate Analysis")
+    st.title("📊 MFC History")
+    st.markdown("Explore player and match data so far — Data Exploration & Univariate Analysis")
 
     from data_loader import load_all_data
     from stats import central_tendency, measures_of_spread, categorical_counts
     from charts import univariate_chart
 
+    # -----------------------------
+    # Load datasets
+    # -----------------------------
     dfs = load_all_data()
     players_df = dfs["Players"]
     matches_df = dfs["Matches"]
     events_df = dfs["Match Events"]
 
+    # Merge player names for easier analysis
     df = events_df.merge(players_df, on="Player_ID")
 
+    # -----------------------------
+    # Sidebar filters
+    # -----------------------------
     st.sidebar.header("Filters")
     season_filter = st.sidebar.multiselect(
         "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
@@ -72,6 +80,7 @@ elif page == "History":
         "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
     )
 
+    # Apply filters
     df_filtered = df[
         (df['Season'].isin(season_filter)) &
         (df['Player_Name'].isin(player_filter)) &
@@ -80,11 +89,16 @@ elif page == "History":
 
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
+    # -----------------------------
+    # Tabs
+    # -----------------------------
     tab1, tab2, tab3 = st.tabs(["Raw Data", "Summary Stats", "Univariate Analysis"])
 
+    # Tab 1: Raw Data
     with tab1:
         st.dataframe(df_filtered)
 
+    # Tab 2: Summary Stats
     with tab2:
         numeric_cols = df_filtered.select_dtypes(include='number').columns.tolist()
         cat_cols = df_filtered.select_dtypes(include='object').columns.tolist()
@@ -102,6 +116,7 @@ elif page == "History":
                 st.write(f"Counts for {col}")
                 st.write(series)
 
+    # Tab 3: Univariate Analysis
     with tab3:
         col_to_plot = st.selectbox("Select Column", df_filtered.columns)
         chart_type = st.selectbox("Chart Type", ["Histogram", "Pie", "Boxplot", "Violin", "Cumulative"])
