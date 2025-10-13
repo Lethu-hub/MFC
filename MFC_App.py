@@ -25,8 +25,8 @@ if page == "Home":
     st.subheader("Upcoming Matches")
     try:
         upcoming_matches_df = pd.read_csv("upcoming_matches.csv")
-        upcoming_matches_df['Match_Date'] = pd.to_datetime(upcoming_matches_df['Match_Date'], errors='coerce')
-        upcoming_matches_df = upcoming_matches_df[upcoming_matches_df['Match_Date'] >= pd.Timestamp.today()]
+        upcoming_matches_df['Date'] = pd.to_datetime(upcoming_matches_df['Date'], errors='coerce')
+        upcoming_matches_df = upcoming_matches_df[upcoming_matches_df['Date'] >= pd.Timestamp.today()]
     except FileNotFoundError:
         st.error("upcoming_matches.csv not found!")
         upcoming_matches_df = pd.DataFrame()
