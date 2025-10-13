@@ -3,15 +3,6 @@ import pandas as pd
 import streamlit as st
 
 # ==========================
-# 📁 CSV paths (relative to repo)
-# ==========================
-DATASETS = {
-    "Players": pd.read_csv"players.csv",
-    "Matches": "matches.csv",
-    "Match Events": "match_events.csv"
-}
-
-# ==========================
 # 🚀 Load CSVs into Pandas
 # ==========================
 @st.cache_data
@@ -25,3 +16,11 @@ def load_all_data():
         except Exception as e:
             print(f"⚠️ Failed to load {name}: {e}")
     return dfs
+# ==========================
+# 📁 CSV paths (relative to repo)
+# ==========================
+DATASETS = {
+    "Players": "players.csv",
+    "Matches": "matches.csv",
+    "Match Events": "match_events.csv"
+}
