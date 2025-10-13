@@ -6,3 +6,4 @@ plotly
 polars
 plotly
 scipy
+sklearn
