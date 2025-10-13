@@ -15,7 +15,7 @@ with st.sidebar.expander("🏟️ MFC Menu"):
 # ==========================
 # Banner
 # ==========================
-st.image("mfc_banner.jpg", use_container_width=True)  # Replace with your banner image
+st.image("mfc_banner.png", use_container_width=True)  # Replace with your banner image
 
 # ==========================
 # Home Page
