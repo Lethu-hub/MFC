@@ -6,7 +6,7 @@ import streamlit as st
 # 📁 CSV paths (relative to repo)
 # ==========================
 DATASETS = {
-    "Players": "players.csv",
+    "Players": pd.read_csv"players.csv",
     "Matches": "matches.csv",
     "Match Events": "match_events.csv"
 }
