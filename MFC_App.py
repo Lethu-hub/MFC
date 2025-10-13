@@ -20,7 +20,7 @@ with st.sidebar:
 # ==========================
 # Banner Image
 # ==========================
-st.image("assets/mfc_banner.jpg", use_column_width=True)  # Replace with your banner image path
+st.image("mfc_banner.jpg", use_column_width=True)  # Replace with your banner image path
 
 # ==========================
 # Load matches
