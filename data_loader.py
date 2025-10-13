@@ -6,9 +6,9 @@ import streamlit as st
 # 📁 CSV paths (relative to repo)
 # ==========================
 DATASETS = {
-    "Players": "data/players.csv",
-    "Matches": "data/matches.csv",
-    "Match Events": "data/match_events.csv"
+    "Players": "players.csv",
+    "Matches": "matches.csv",
+    "Match Events": "match_events.csv"
 }
 
 # ==========================
