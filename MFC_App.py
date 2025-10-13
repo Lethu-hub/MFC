@@ -191,89 +191,113 @@ elif page == "Performance":
         if fig_ts:
             st.plotly_chart(fig_ts, use_container_width=True)
 
-# ==========================
-# Predictions Page
-# ==========================
 elif page == "Predictions":
-    st.title("⚡ MFC Predictions: Upcoming Matches")
+    st.title("⚡ MFC Player Predictions: Upcoming Matches")
 
-    st.sidebar.header("Prediction Setup")
+    # -----------------------------
+    # Load Data
+    # -----------------------------
+    @st.cache_data
+    def load_data():
+        players_df = pd.read_csv("Players.csv")
+        events_df = pd.read_csv("Match Events.csv")
+        try:
+            upcoming_df = pd.read_csv("upcoming_matches.csv", parse_dates=["Date"])
+        except FileNotFoundError:
+            st.error("⚠️ upcoming_matches.csv not found!")
+            upcoming_df = pd.DataFrame()
+        return players_df, events_df, upcoming_df
 
-    # Load upcoming matches
-    try:
-        upcoming_matches_df = pd.read_csv("upcoming_matches.csv")
-        upcoming_matches_df['Date'] = pd.to_datetime(upcoming_matches_df['Date'], errors='coerce')
-        upcoming_matches_df = upcoming_matches_df[upcoming_matches_df['Date'] >= pd.Timestamp.today()]
-    except FileNotFoundError:
-        st.error("upcoming_matches.csv not found!")
-        upcoming_matches_df = pd.DataFrame()
+    players_df, events_df, upcoming_df = load_data()
 
-    if upcoming_matches_df.empty:
-        st.info("No upcoming matches to predict yet!")
+    if upcoming_df.empty:
+        st.info("No upcoming matches available for prediction.")
     else:
-        st.markdown("### Upcoming Matches Data")
-        st.dataframe(upcoming_matches_df.head(10))
+        # Filter only MFC matches
+        mfc_upcoming = upcoming_df[
+            (upcoming_df["HomeTeam"] == "MFC") | (upcoming_df["AwayTeam"] == "MFC")
+        ]
+        if mfc_upcoming.empty:
+            st.info("No upcoming MFC matches scheduled.")
+        else:
+            st.subheader("Upcoming MFC Matches")
+            st.dataframe(mfc_upcoming[["Date", "HomeTeam", "AwayTeam", "Competition", "Venue"]])
 
-        # -----------------------------
-        # Feature selection for prediction
-        # -----------------------------
-        numeric_cols = upcoming_matches_df.select_dtypes(include='number').columns.tolist()
-        cat_cols = upcoming_matches_df.select_dtypes(include='object').columns.tolist()
+            # -----------------------------
+            # Prepare features for player predictions
+            # -----------------------------
+            df = events_df.merge(players_df, on="Player_ID")
+            numeric_cols = df.select_dtypes(include="number").columns.tolist()
 
-        target_col = st.sidebar.selectbox("Select Target Variable", numeric_cols)
-        feature_cols = st.sidebar.multiselect(
-            "Select Features (X)",
-            [c for c in upcoming_matches_df.columns if c != target_col],
-            default=[c for c in upcoming_matches_df.columns if c != target_col]
-        )
+            target_col = st.sidebar.selectbox("Target Variable (Player Stat to Predict)", numeric_cols)
+            feature_cols = st.sidebar.multiselect(
+                "Features (X)", [c for c in df.columns if c != target_col]
+            )
 
-        if feature_cols:
-            X = upcoming_matches_df[feature_cols]
-            y = upcoming_matches_df[target_col]
+            if not feature_cols:
+                st.warning("Select at least one feature.")
+            else:
+                X = df[feature_cols]
+                y = df[target_col]
+                X_encoded = pd.get_dummies(X, drop_first=True)
 
-            # Encode categorical variables
-            X_encoded = pd.get_dummies(X, drop_first=True)
+                from sklearn.model_selection import train_test_split
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X_encoded, y, test_size=0.2, random_state=42
+                )
 
-            from sklearn.model_selection import train_test_split
-            from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-            from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix
-            import plotly.express as px
+                from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+                import plotly.express as px
+                from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix
 
-            X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
+                if st.sidebar.button("Train & Predict"):
+                    if y.dtype in ["int64", "float64"] and y.nunique() > 5:
+                        model = RandomForestRegressor(n_estimators=100, random_state=42)
+                        model_type = "Regression"
+                    else:
+                        model = RandomForestClassifier(n_estimators=100, random_state=42)
+                        model_type = "Classification"
 
-            if st.sidebar.button("Train & Predict"):
-                # Determine model type
-                if y.dtype in ["int64", "float64"] and y.nunique() > 5:
-                    model = RandomForestRegressor(n_estimators=100, random_state=42)
-                    model_type = "Regression"
-                else:
-                    model = RandomForestClassifier(n_estimators=100, random_state=42)
-                    model_type = "Classification"
+                    model.fit(X_train, y_train)
+                    y_pred = model.predict(X_test)
 
-                model.fit(X_train, y_train)
-                y_pred = model.predict(X_test)
+                    st.subheader(f"Model Type: {model_type}")
+                    st.write("### Historical Predictions (Test Set)")
+                    st.dataframe(pd.DataFrame({"Actual": y_test, "Predicted": y_pred}).head(20))
 
-                st.subheader(f"Model Type: {model_type}")
-                st.write("### Predictions vs Actuals")
-                results = pd.DataFrame({"Actual": y_test, "Predicted": y_pred})
-                st.dataframe(results.head(20))
+                    # -----------------------------
+                    # Player-level Predictions
+                    # -----------------------------
+                    st.subheader("MFC Player Predictions for Upcoming Matches")
 
-                # Metrics
-                if model_type == "Regression":
-                    st.write(f"Mean Squared Error: {mean_squared_error(y_test, y_pred):.2f}")
-                    st.write(f"R² Score: {r2_score(y_test, y_pred):.2f}")
-                else:
-                    st.write(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
-                    st.write("Confusion Matrix:")
-                    st.write(confusion_matrix(y_test, y_pred))
+                    # For simplicity: use each player's historical averages as features
+                    mfc_players = players_df[players_df["Club"] == "MFC"]
+                    upcoming_features = pd.DataFrame()
 
-                # Feature Importance
-                st.write("### Feature Importance")
-                feat_imp = pd.DataFrame({
-                    "Feature": X_encoded.columns,
-                    "Importance": model.feature_importances_
-                }).sort_values(by="Importance", ascending=False)
-                st.dataframe(feat_imp.head(20))
+                    for col in feature_cols:
+                        if col in df.columns:
+                            # Average stat per player
+                            player_avg = df.groupby("Player_ID")[col].mean()
+                            upcoming_features[col] = mfc_players["Player_ID"].map(player_avg)
 
-                fig_imp = px.bar(feat_imp.head(20), x="Feature", y="Importance", title="Top Features")
-                st.plotly_chart(fig_imp, use_container_width=True)
+                    upcoming_features = pd.get_dummies(upcoming_features, drop_first=True)
+                    # Align columns
+                    upcoming_features = upcoming_features.reindex(columns=X_encoded.columns, fill_value=0)
+
+                    predictions = model.predict(upcoming_features)
+                    mfc_players["Predicted_" + target_col] = predictions
+
+                    st.dataframe(
+                        mfc_players[["Player_Name", "Predicted_" + target_col]].sort_values(
+                            by="Predicted_" + target_col, ascending=False
+                        )
+                    )
+
+                    # Feature Importance
+                    feat_imp = pd.DataFrame({
+                        "Feature": X_encoded.columns,
+                        "Importance": model.feature_importances_
+                    }).sort_values(by="Importance", ascending=False)
+                    st.write("### Top Features")
+                    st.dataframe(feat_imp.head(20))
+                    st.plotly_chart(px.bar(feat_imp.head(20), x="Feature", y="Importance", title="Feature Importance"))
