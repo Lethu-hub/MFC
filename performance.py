@@ -1,6 +1,6 @@
 import streamlit as st
-from utils.data_loader import load_all_data
-from utils.charts import bivariate_chart, correlation_heatmap, pairplot, stacked_bar, timeseries_chart
+from data_loader import load_all_data
+from charts import bivariate_chart, correlation_heatmap, pairplot, stacked_bar, timeseries_chart
 
 st.set_page_config(page_title="MFC Performance Analysis", layout="wide")
 st.title("⚽ MFC Performance Analysis: Bivariate & Multivariate Insights")
