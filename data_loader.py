@@ -1,36 +1,62 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
+from datetime import datetime
 
 # ==========================
-# CSV file names
+# ⚙️ Page Config
 # ==========================
-PLAYERS_PATH = "players.csv"
-MATCHES_PATH = "matches.csv"
-EVENTS_PATH = "match_events.csv"
+st.set_page_config(page_title="🏟️ MFC Home", layout="wide")
+
+st.title("🏟️ Welcome to Mighty Football Club (MFC)")
+st.markdown("#### ⚽ Founded in 2022 — Champions in Passion, Unity & Performance")
 
 # ==========================
-# Load CSVs into Pandas
+# 📂 Load Data
 # ==========================
 @st.cache_data
-def load_all_data():
-    dfs = {}
-    
+def load_upcoming_matches():
     try:
-        dfs["Players"] = pd.read_csv(PLAYERS_PATH)
-        print(f"✅ Players: {dfs['Players'].shape}")
-    except Exception as e:
-        print(f"⚠️ Failed to load Players: {e}")
-        
-    try:
-        dfs["Matches"] = pd.read_csv(MATCHES_PATH)
-        print(f"✅ Matches: {dfs['Matches'].shape}")
-    except Exception as e:
-        print(f"⚠️ Failed to load Matches: {e}")
-        
-    try:
-        dfs["Match Events"] = pd.read_csv(EVENTS_PATH)
-        print(f"✅ Match Events: {dfs['Match Events'].shape}")
-    except Exception as e:
-        print(f"⚠️ Failed to load Match Events: {e}")
-        
-    return dfs
+        df = pd.read_csv("upcoming_matches.csv", parse_dates=["Date"])
+        return df
+    except FileNotFoundError:
+        st.error("⚠️ Could not find 'upcoming_matches.csv'. Please generate it first.")
+        return pd.DataFrame()
+
+upcoming_df = load_upcoming_matches()
+
+# ==========================
+# 📅 Filter: Only Future Matches
+# ==========================
+today = datetime.today().date()
+future_matches = upcoming_df[upcoming_df["Date"].dt.date >= today].sort_values("Date")
+
+st.markdown("## 📅 Upcoming Matches")
+if not future_matches.empty:
+    # Show only key columns neatly formatted
+    display_cols = ["Date", "KickOffTime", "HomeTeam", "AwayTeam", "Competition", "Venue", "Weather"]
+    st.dataframe(
+        future_matches[display_cols].reset_index(drop=True),
+        use_container_width=True,
+        hide_index=True
+    )
+else:
+    st.info("✅ No upcoming matches — the season might be complete!")
+
+# ==========================
+# 🔗 Navigation Links
+# ==========================
+st.markdown("---")
+st.markdown("### 🔍 Explore More")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("📊 View Historical Performance"):
+        st.switch_page("pages/history.py")
+
+with col2:
+    if st.button("📈 Performance Analysis"):
+        st.switch_page("pages/performance.py")
+
+with col3:
+    if st.button("🎯 Predictions"):
+        st.switch_page("pages/predictions.py")
