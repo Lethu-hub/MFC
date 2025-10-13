@@ -1,7 +1,7 @@
 import streamlit as st
-from utils.data_loader import load_all_data
-from utils.stats import central_tendency, measures_of_spread, categorical_counts
-from utils.charts import univariate_chart
+from data_loader import load_all_data
+from stats import central_tendency, measures_of_spread, categorical_counts
+from charts import univariate_chart
 
 st.set_page_config(page_title="MFC History", layout="wide")
 st.title("📊 MFC History: Data Exploration & Univariate Analysis")
