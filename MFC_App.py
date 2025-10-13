@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.data_loader import load_all_data
+from data_loader import load_all_data
 
 st.set_page_config(page_title="MFC Home", layout="wide")
 st.title("🏟️ Welcome to MFC - Mighty Football Club")
