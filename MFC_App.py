@@ -1,71 +1,59 @@
 import streamlit as st
-from data_loader import load_all_data
+import pandas as pd
+from datetime import datetime
 
-st.set_page_config(page_title="MFC Home", layout="wide")
-st.title("🏟️ Welcome to MFC - Mighty Football Club")
-st.subheader("Explore our history, performance, and predictions!")
+# ---------------------------
+# Page config
+# ---------------------------
+st.set_page_config(page_title="🏟️ MFC Home", layout="wide")
 
-# -----------------------------
-# Load datasets
-# -----------------------------
-dfs = load_all_data()
-players_df = dfs["Players"]
-matches_df = dfs["Matches"]
-events_df = dfs["Match Events"]
+# ---------------------------
+# Sidebar - retractable menu simulation
+# ---------------------------
+with st.sidebar:
+    st.title("🏟️ MFC Menu")
+    show_home = st.button("🏠 Home")
+    show_history = st.button("📊 Historical Data")
+    show_performance = st.button("📈 Performance Analysis")
+    show_predictions = st.button("🎯 Predictions")
+    
+# ---------------------------
+# Load upcoming matches
+# ---------------------------
+@st.cache_data
+def load_upcoming_matches():
+    df = pd.read_csv("upcoming_matches.csv")
+    df.columns = df.columns.str.strip()  # Remove hidden spaces
+    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+    return df
 
-# -----------------------------
-# Club Summary
-# -----------------------------
-st.markdown("""
-**About MFC:**  
-Founded in 1998, MFC has been competing in national and international competitions for over 25 years.  
-Our mission: develop world-class talent and dominate on the pitch.
-""")
+matches_df = load_upcoming_matches()
 
-# Basic Stats
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Seasons Played", matches_df['Season'].nunique())
-col2.metric("Total Matches", matches_df.shape[0])
-col3.metric("Players Registered", players_df.shape[0])
-col4.metric("Total Events Recorded", events_df.shape[0])
+today = datetime.today().date()
+future_matches = matches_df[matches_df["Date"].dt.date >= today].sort_values("Date")
 
-st.markdown("---")
+# ---------------------------
+# Page content based on sidebar buttons
+# ---------------------------
+if show_home or (not show_history and not show_performance and not show_predictions):
+    st.title("🏟️ Welcome to Mighty Football Club (MFC)")
+    st.markdown("#### ⚽ Founded in 2022 — Champions in Passion, Unity & Performance")
 
-# -----------------------------
-# Navigation Links
-# -----------------------------
-st.subheader("Explore Our Data")
+    st.subheader("📅 Upcoming Matches")
+    if not future_matches.empty:
+        display_cols = ["Date", "KickOffTime", "HomeTeam", "AwayTeam", "Competition", "Venue", "Weather"]
+        st.dataframe(future_matches[display_cols].reset_index(drop=True), use_container_width=True)
+    else:
+        st.info("✅ No upcoming matches — the season might be complete!")
 
-st.markdown("""
-Use the buttons below to navigate to different pages:
-""")
+elif show_history:
+    st.title("📊 Historical Performance")
+    st.markdown("This is where we can explore historical match data, univariate & bivariate analysis.")
 
-col1, col2, col3 = st.columns(3)
+elif show_performance:
+    st.title("📈 Performance Analysis")
+    st.markdown("Here we show player and team performance analytics, charts, heatmaps, violin plots, etc.")
 
-with col1:
-    if st.button("📜 History"):
-        st.experimental_set_query_params(page="history")
-
-with col2:
-    if st.button("📈 Performance Analysis"):
-        st.experimental_set_query_params(page="performance")
-
-with col3:
-    if st.button("⚡ Predictions"):
-        st.experimental_set_query_params(page="predictions")
-
-st.markdown("---")
-
-# -----------------------------
-# Upcoming Match Preview (Optional)
-# -----------------------------
-st.subheader("Upcoming Match")
-upcoming_match = matches_df[matches_df['Date'] > pd.Timestamp.today()].sort_values('Date').head(1)
-if not upcoming_match.empty:
-    match = upcoming_match.iloc[0]
-    st.markdown(f"**{match['Home_Team']} vs {match['Away_Team']}**")
-    st.markdown(f"Date: {match['Date']}")
-    st.markdown(f"Competition: {match['Competition']}")
-else:
-    st.markdown("No upcoming matches recorded.")
-
+elif show_predictions:
+    st.title("🎯 Predictions")
+    st.markdown("Upcoming match predictions, yellow/red cards, goal scorers, etc.")
