@@ -34,13 +34,13 @@ if page == "Home":
     if upcoming_matches_df.empty:
         st.info("No upcoming matches scheduled yet!")
     else:
-        upcoming_matches_df = upcoming_matches_df.sort_values(by='Match_Date')
+        upcoming_matches_df = upcoming_matches_df.sort_values(by='Date')
         for _, match in upcoming_matches_df.head(3).iterrows():
             st.markdown(
                 f"""
                 <div style="border:1px solid #e1e1e1; padding:15px; border-radius:10px; margin-bottom:10px; background-color:#f9f9f9;">
                     <h4 style="margin:0;">{match['HomeTeam']} vs {match['AwayTeam']}</h4>
-                    <p style="margin:0;">📅 Date: {match['Match_Date'].strftime('%A, %d %B %Y')}<br>
+                    <p style="margin:0;">📅 Date: {match['Date'].strftime('%A, %d %B %Y')}<br>
                     🏟️ Venue: {match['Venue']}<br>
                     ⚽ Competition: {match['Competition']}</p>
                 </div>
