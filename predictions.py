@@ -5,7 +5,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix
 import plotly.express as px
 
-from utils.data_loader import load_all_data
+from data_loader import load_all_data
 
 st.set_page_config(page_title="MFC Predictions", layout="wide")
 st.title("⚡ MFC Predictions: Player & Match Outcomes")
