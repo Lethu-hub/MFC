@@ -1,81 +1,80 @@
-import streamlit as st
 import pandas as pd
-from datetime import datetime
+import streamlit as st
 
 # ==========================
-# Page Config
-# ==========================
-st.set_page_config(page_title="🏟️ MFC Home", layout="wide")
-
-# ==========================
-# Sidebar - retractable menu simulation
-# ==========================
-with st.sidebar:
-    st.title("🏟️ MFC Menu")
-    show_home = st.button("🏠 Home")
-    show_history = st.button("📊 Historical Data")
-    show_performance = st.button("📈 Performance Analysis")
-    show_predictions = st.button("🎯 Predictions")
-
-# ==========================
-# Banner Image
-# ==========================
-st.image("mfc_banner.png", use_column_width=True)  # Replace with your banner image path
-
-# ==========================
-# Load matches
+# Load matches CSV
 # ==========================
 @st.cache_data
-def load_upcoming_matches():
+def load_matches():
     df = pd.read_csv("matches.csv")
-    df.columns = df.columns.str.strip()  # Remove leading/trailing spaces
-    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+    df.columns = df.columns.str.strip()
+    df["Match_Date"] = pd.to_datetime(df["Match_Date"], errors='coerce')
     return df
 
-matches_df = load_upcoming_matches()
-
-# Filter future matches
-today = datetime.today().date()
-future_matches = matches_df[matches_df["Date"].dt.date >= today].sort_values("Date")
-next_three = future_matches.head(3)
+matches_df = load_matches()
 
 # ==========================
-# Page Content
+# Page Setup
 # ==========================
-if show_home or (not show_history and not show_performance and not show_predictions):
-    st.title("🏟️ Welcome to Mighty Football Club (MFC)")
-    st.markdown("#### ⚽ Founded in 2022 — Champions in Passion, Unity & Performance")
+st.set_page_config(page_title="MFC Home", layout="wide")
 
-    st.subheader("📅 Next 3 Upcoming Matches")
+# ==========================
+# Sidebar Navigation
+# ==========================
+st.sidebar.title("🏟️ MFC Menu")
+page = st.sidebar.radio("Navigate:", ["Home", "History", "Performance", "Predictions"])
+
+# ==========================
+# Home / Landing Page
+# ==========================
+if page == "Home":
+    # Banner image
+    st.image("https://upload.wikimedia.org/wikipedia/commons/3/3b/Football_pitch.png",
+             use_container_width=True)
     
-    if not next_three.empty:
-        for i, match in next_three.iterrows():
-            match_date = match['Date']
-            days_left = (match_date.date() - today).days
+    st.markdown("<h1 style='text-align: center; color: #0055A4;'>Welcome to Mighty Football Club 🏆</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    Mighty Football Club (MFC) was founded in [year].  
+    We have played countless matches and continue to strive for excellence.  
+    """)
 
-            # Use columns for a card-like display
-            col1, col2, col3 = st.columns([2, 1, 2])
-            with col1:
-                st.markdown(f"**{match['HomeTeam']} vs {match['AwayTeam']}**")
-                st.markdown(f"**Competition:** {match['Competition']}")
-            with col2:
-                st.markdown(f"📅 {match_date.date()}")
-                st.markdown(f"⏱️ Kickoff: {match['KickOffTime']}")
-            with col3:
-                st.markdown(f"📍 {match['Venue']}")
-                st.markdown(f"⏳ {days_left} days left")
-            st.markdown("---")
+    # ==========================
+    # Upcoming Matches
+    # ==========================
+    st.subheader("⚡ Upcoming Matches")
+    upcoming_matches = matches_df[matches_df["Match_Date"] > pd.Timestamp.today()]
+    upcoming_matches = upcoming_matches.sort_values("Match_Date").head(3)
+
+    if not upcoming_matches.empty:
+        for idx, match in upcoming_matches.iterrows():
+            # Default colors/icons (replace with team logos if available)
+            home_color = "#0055A4"
+            away_color = "#D32F2F"
+            yellow_cards = match.get("Home_Yellow", 0)
+            red_cards = match.get("Home_Red", 0)
+
+            st.markdown(f"""
+            <div style='border:2px solid {home_color}; padding:15px; border-radius:10px; margin-bottom:10px; transition: all 0.3s;'>
+                <h3 style='color:{home_color};'>{match['HomeTeam']} vs <span style='color:{away_color};'>{match['AwayTeam']}</span></h3>
+                <p><strong>Date:</strong> {match['Match_Date'].strftime('%Y-%m-%d')} | <strong>Season:</strong> {match['Season']}</p>
+                <p><strong>Venue:</strong> {match.get('Venue', 'N/A')} | <strong>Competition:</strong> {match.get('Competition', 'N/A')}</p>
+                <p>🟨 {yellow_cards} | 🟥 {red_cards}</p>
+                <button onclick="alert('Navigate to Predictions!')">View Prediction</button>
+            </div>
+            """, unsafe_allow_html=True)
     else:
-        st.info("✅ No upcoming matches — the season might be complete!")
+        st.info("No upcoming matches scheduled.")
 
-elif show_history:
-    st.title("📊 Historical Performance")
-    st.markdown("Explore historical match data, univariate & bivariate analysis.")
-
-elif show_performance:
-    st.title("📈 Performance Analysis")
-    st.markdown("Player and team performance analytics, charts, heatmaps, violin plots, etc.")
-
-elif show_predictions:
-    st.title("🎯 Predictions")
-    st.markdown("Upcoming match predictions, yellow/red cards, goal scorers, etc.")
+    # ==========================
+    # Quick Action Buttons
+    # ==========================
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("📜 View History"):
+            st.session_state.page = "History"
+    with col2:
+        if st.button("📊 Performance Analysis"):
+            st.session_state.page = "Performance"
+    with col3:
+        if st.button("🎯 Make Predictions"):
+            st.session_state.page = "Predictions"
