@@ -195,71 +195,85 @@ elif page == "Performance":
 # Predictions Page
 # ==========================
 elif page == "Predictions":
-    st.title("⚡ MFC Predictions: Player & Match Outcomes")
-
-    from utils.data_loader import load_all_data
-    from sklearn.model_selection import train_test_split
-    from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-    from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix
-    import plotly.express as px
-
-    dfs = load_all_data()
-    players_df = dfs["Players"]
-    matches_df = dfs["Matches"]
-    events_df = dfs["Match Events"]
-
-    df = events_df.merge(players_df, on="Player_ID")
+    st.title("⚡ MFC Predictions: Upcoming Matches")
 
     st.sidebar.header("Prediction Setup")
-    numeric_cols = df.select_dtypes(include='number').columns.tolist()
-    cat_cols = df.select_dtypes(include='object').columns.tolist()
 
-    target_col = st.sidebar.selectbox("Select Target Variable", numeric_cols)
-    feature_cols = st.sidebar.multiselect("Select Features (X)", [c for c in df.columns if c != target_col])
+    # Load upcoming matches
+    try:
+        upcoming_matches_df = pd.read_csv("upcoming_matches.csv")
+        upcoming_matches_df['Date'] = pd.to_datetime(upcoming_matches_df['Date'], errors='coerce')
+        upcoming_matches_df = upcoming_matches_df[upcoming_matches_df['Date'] >= pd.Timestamp.today()]
+    except FileNotFoundError:
+        st.error("upcoming_matches.csv not found!")
+        upcoming_matches_df = pd.DataFrame()
 
-    if not feature_cols:
-        st.warning("Please select at least one feature.")
+    if upcoming_matches_df.empty:
+        st.info("No upcoming matches to predict yet!")
     else:
-        X = df[feature_cols]
-        y = df[target_col]
+        st.markdown("### Upcoming Matches Data")
+        st.dataframe(upcoming_matches_df.head(10))
 
-        X_encoded = pd.get_dummies(X, drop_first=True)
-        X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
+        # -----------------------------
+        # Feature selection for prediction
+        # -----------------------------
+        numeric_cols = upcoming_matches_df.select_dtypes(include='number').columns.tolist()
+        cat_cols = upcoming_matches_df.select_dtypes(include='object').columns.tolist()
 
-        if st.sidebar.button("Train & Predict"):
-            if y.dtype in ["int64", "float64"] and y.nunique() > 5:
-                model = RandomForestRegressor(n_estimators=100, random_state=42)
-                model_type = "Regression"
-            else:
-                model = RandomForestClassifier(n_estimators=100, random_state=42)
-                model_type = "Classification"
+        target_col = st.sidebar.selectbox("Select Target Variable", numeric_cols)
+        feature_cols = st.sidebar.multiselect(
+            "Select Features (X)",
+            [c for c in upcoming_matches_df.columns if c != target_col],
+            default=[c for c in upcoming_matches_df.columns if c != target_col]
+        )
 
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
+        if feature_cols:
+            X = upcoming_matches_df[feature_cols]
+            y = upcoming_matches_df[target_col]
 
-            st.subheader(f"Model Type: {model_type}")
-            st.write("### Predictions vs Actuals")
-            results = pd.DataFrame({"Actual": y_test, "Predicted": y_pred})
-            st.dataframe(results.head(20))
+            # Encode categorical variables
+            X_encoded = pd.get_dummies(X, drop_first=True)
 
-            if model_type == "Regression":
-                mse = mean_squared_error(y_test, y_pred)
-                r2 = r2_score(y_test, y_pred)
-                st.write(f"Mean Squared Error: {mse:.2f}")
-                st.write(f"R² Score: {r2:.2f}")
-            else:
-                acc = accuracy_score(y_test, y_pred)
-                st.write(f"Accuracy: {acc:.2f}")
-                st.write("Confusion Matrix:")
-                cm = confusion_matrix(y_test, y_pred)
-                st.write(cm)
+            from sklearn.model_selection import train_test_split
+            from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+            from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix
+            import plotly.express as px
 
-            st.write("### Feature Importance")
-            feat_imp = pd.DataFrame({
-                "Feature": X_encoded.columns,
-                "Importance": model.feature_importances_
-            }).sort_values(by="Importance", ascending=False)
-            st.dataframe(feat_imp.head(20))
+            X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
 
-            fig_imp = px.bar(feat_imp.head(20), x="Feature", y="Importance", title="Top Features")
-            st.plotly_chart(fig_imp, use_container_width=True)
+            if st.sidebar.button("Train & Predict"):
+                # Determine model type
+                if y.dtype in ["int64", "float64"] and y.nunique() > 5:
+                    model = RandomForestRegressor(n_estimators=100, random_state=42)
+                    model_type = "Regression"
+                else:
+                    model = RandomForestClassifier(n_estimators=100, random_state=42)
+                    model_type = "Classification"
+
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_test)
+
+                st.subheader(f"Model Type: {model_type}")
+                st.write("### Predictions vs Actuals")
+                results = pd.DataFrame({"Actual": y_test, "Predicted": y_pred})
+                st.dataframe(results.head(20))
+
+                # Metrics
+                if model_type == "Regression":
+                    st.write(f"Mean Squared Error: {mean_squared_error(y_test, y_pred):.2f}")
+                    st.write(f"R² Score: {r2_score(y_test, y_pred):.2f}")
+                else:
+                    st.write(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
+                    st.write("Confusion Matrix:")
+                    st.write(confusion_matrix(y_test, y_pred))
+
+                # Feature Importance
+                st.write("### Feature Importance")
+                feat_imp = pd.DataFrame({
+                    "Feature": X_encoded.columns,
+                    "Importance": model.feature_importances_
+                }).sort_values(by="Importance", ascending=False)
+                st.dataframe(feat_imp.head(20))
+
+                fig_imp = px.bar(feat_imp.head(20), x="Feature", y="Importance", title="Top Features")
+                st.plotly_chart(fig_imp, use_container_width=True)
