@@ -1,5 +1,9 @@
 import streamlit as st
 import pandas as pd
+from data_loader import load_all_data
+from stats import central_tendency, measures_of_spread, categorical_counts
+from charts import univariate_chart
+from datetime import datetime
 
 # ==========================
 # Page config
@@ -49,18 +53,16 @@ elif page == "History":
     st.title("📊 MFC History")
     st.markdown("Explore player and match data so far — Data Exploration & Univariate Analysis")
 
-    from data_loader import load_all_data
-    from stats import central_tendency, measures_of_spread, categorical_counts
-    from charts import univariate_chart
-
+    # Load datasets
     dfs = load_all_data()
     players_df = dfs["Players"]
     matches_df = dfs["Matches"]
     events_df = dfs["Match Events"]
 
+    # Merge player names for easier analysis
     df = events_df.merge(players_df, on="Player_ID")
 
-    # ----------------------------- Sidebar filters
+    # Sidebar filters
     st.sidebar.header("Filters")
     season_filter = st.sidebar.multiselect(
         "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
@@ -72,6 +74,7 @@ elif page == "History":
         "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
     )
 
+    # Apply filters
     df_filtered = df[
         (df['Season'].isin(season_filter)) &
         (df['Player_Name'].isin(player_filter)) &
@@ -80,8 +83,8 @@ elif page == "History":
 
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
-    # ----------------------------- Tabs
-    tab1, tab2, tab3, tab_team = st.tabs(["Raw Data", "Summary Stats", "Univariate Analysis", "🏆 Team Summary"])
+    # Tabs: Raw, Summary, Univariate, Team
+    tab1, tab2, tab3, tab4 = st.tabs(["Raw Data", "Summary Stats", "Univariate Analysis", "Team Stats"])
 
     # Tab 1: Raw Data
     with tab1:
@@ -115,107 +118,94 @@ elif page == "History":
         else:
             st.warning("Cumulative chart requires a numeric column.")
 
-    # Tab 4: Team Summary
-    with tab_team:
-        if not df_filtered.empty:
-            match_id = st.selectbox("Select Match for Team Summary", df_filtered['Match_ID'].unique(), key="team_summary_history")
-            match_players = df_filtered[df_filtered['Match_ID'] == match_id]
-            numeric_cols = match_players.select_dtypes(include='number').columns.tolist()
+    # Tab 4: Team Stats
+    with tab4:
+        st.subheader("🏆 Team-Level Stats")
 
-            if numeric_cols:
-                team_summary = match_players[numeric_cols].sum().to_frame().T
-                st.subheader(f"Team Totals for Match {match_id}")
-                st.dataframe(team_summary)
-            else:
-                st.info("No numeric stats available for this match.")
-        else:
-            st.info("No data available for team summary.")
+        # Select match
+        match_ids = df_filtered['Match_ID'].unique()
+        selected_match = st.selectbox("Select Match", match_ids)
+
+        # Filter team data
+        team_df = df_filtered[df_filtered['Match_ID'] == selected_match]
+
+        # Auto-populate players (greyed out)
+        match_players = team_df['Player_Name'].unique()
+        st.multiselect("Players in Match", match_players, default=match_players, disabled=True)
+
+        # Optional: Event filter
+        event_filter_team = st.multiselect(
+            "Filter Event Type", options=team_df['Event_Type'].unique(), default=team_df['Event_Type'].unique()
+        )
+        team_df_filtered = team_df[team_df['Event_Type'].isin(event_filter_team)]
+
+        # Aggregate team stats
+        team_stats = team_df_filtered.groupby('Event_Type').size().reset_index(name='Count')
+        st.table(team_stats)
 
 # ==========================
 # Performance Page
 # ==========================
 elif page == "Performance":
-    st.title("⚽ MFC Performance Analysis: Bivariate & Multivariate Insights")
+    st.title("📈 Team & Player Performance")
+    # Logic similar to History page; you can reuse the tabs with team stats included
+    # Could include season-wide aggregates, player vs team comparison, etc.
+    # For brevity, same structure as History with Team Tab included
 
-    from data_loader import load_all_data
-    from charts import bivariate_chart, correlation_heatmap, pairplot, stacked_bar, timeseries_chart
+# ==========================
+# Predictions Page
+# ==========================
+elif page == "Predictions":
+    st.title("⚡ MFC Player Predictions: Upcoming Matches")
 
-    dfs = load_all_data()
-    players_df = dfs["Players"]
-    matches_df = dfs["Matches"]
-    events_df = dfs["Match Events"]
+    @st.cache_data
+    def load_data():
+        try:
+            players_df = pd.read_csv("players.csv")
+            events_df = pd.read_csv("match_events.csv")
+        except FileNotFoundError:
+            st.error("⚠️ Missing core datasets.")
+            return None, None, pd.DataFrame()
+        try:
+            upcoming_df = pd.read_csv("upcoming_matches.csv", parse_dates=["Date"])
+        except FileNotFoundError:
+            st.warning("⚠️ 'upcoming_matches.csv' not found.")
+            upcoming_df = pd.DataFrame()
+        return players_df, events_df, upcoming_df
 
-    df = events_df.merge(players_df, on="Player_ID")
+    players_df, events_df, upcoming_df = load_data()
+    if players_df is None or events_df is None:
+        st.stop()
 
-    # Sidebar filters
-    st.sidebar.header("Filters")
-    season_filter = st.sidebar.multiselect(
-        "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
-    )
-    player_filter = st.sidebar.multiselect(
-        "Select Player", options=players_df['Player_Name'].unique(), default=players_df['Player_Name'].unique()
-    )
-    event_filter = st.sidebar.multiselect(
-        "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
-    )
+    # Upcoming matches
+    if upcoming_df.empty:
+        st.info("✅ No upcoming matches available.")
+    else:
+        mfc_upcoming = upcoming_df[
+            (upcoming_df["HomeTeam"].str.upper() == "MFC") |
+            (upcoming_df["AwayTeam"].str.upper() == "MFC")
+        ]
+        if not mfc_upcoming.empty:
+            st.subheader("📅 Upcoming MFC Matches")
+            st.dataframe(
+                mfc_upcoming[["Date", "HomeTeam", "AwayTeam", "Competition", "Venue"]],
+                hide_index=True, use_container_width=True
+            )
 
-    df_filtered = df[
-        (df['Season'].isin(season_filter)) &
-        (df['Player_Name'].isin(player_filter)) &
-        (df['Event_Type'].isin(event_filter))
-    ]
-
-    st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
-
-    # Tabs
-    tab1, tab2, tab3, tab_team = st.tabs(["Bivariate Charts", "Multivariate Charts", "Time Series", "🏆 Team Summary"])
-
-    # Tab1: Bivariate Charts
-    with tab1:
-        x_col = st.selectbox("X-axis Column", df_filtered.columns, key="biv_x")
-        y_col = st.selectbox("Y-axis Column", df_filtered.columns, key="biv_y")
-        color_col = st.selectbox("Color Column (Optional)", [None]+df_filtered.columns.tolist(), key="biv_color")
-        chart_type = st.selectbox("Chart Type", ["Scatter", "Line", "Box", "Bar", "Bubble"], key="biv_type")
-
-        fig = bivariate_chart(df_filtered, x_col, y_col, chart_type, color_col)
-        if fig:
-            st.plotly_chart(fig, use_container_width=True)
-
-    # Tab2: Correlation & Pairplot
-    with tab2:
-        st.subheader("Correlation Heatmap")
-        fig_heat = correlation_heatmap(df_filtered)
-        st.plotly_chart(fig_heat, use_container_width=True)
-
-        st.subheader("Scatter Matrix / Pairplot")
-        fig_pair = pairplot(df_filtered)
-        st.plotly_chart(fig_pair, use_container_width=True)
-
-    # Tab3: Time Series
-    with tab3:
-        x_time = st.selectbox("X-axis (Time Column)", df_filtered.columns, key="ts_x")
-        y_time = st.selectbox("Y-axis (Metric Column)", df_filtered.columns, key="ts_y")
-        color_time = st.selectbox("Color Column (Optional)", [None]+df_filtered.columns.tolist(), key="ts_color")
-
-        fig_ts = timeseries_chart(df_filtered, x_time, y_time, color_time)
-        if fig_ts:
-            st.plotly_chart(fig_ts, use_container_width=True)
-
-    # Tab4: Team Summary
-    with tab_team:
-        if not df_filtered.empty:
-            match_id = st.selectbox("Select Match for Team Summary", df_filtered['Match_ID'].unique(), key="team_summary_perf")
-            match_players = df_filtered[df_filtered['Match_ID'] == match_id]
-            numeric_cols = match_players.select_dtypes(include='number').columns.tolist()
-
-            if numeric_cols:
-                team_summary = match_players[numeric_cols].sum().to_frame().T
-                st.subheader(f"Team Totals for Match {match_id}")
-                st.dataframe(team_summary)
-            else:
-                st.info("No numeric stats available for this match.")
-        else:
-            st.info("No data available for team summary.")
+    # Team stats tab for Predictions page
+    st.subheader("🏆 Team-Level Stats for Selected Match")
+    if not upcoming_df.empty:
+        upcoming_match_ids = mfc_upcoming['Match_ID'].unique()
+        selected_match_pred = st.selectbox("Select Upcoming Match", upcoming_match_ids)
+        team_df_pred = events_df[events_df['Match_ID'] == selected_match_pred]
+        match_players_pred = team_df_pred.merge(players_df, on='Player_ID')['Player_Name'].unique()
+        st.multiselect("Players in Match", match_players_pred, default=match_players_pred, disabled=True)
+        event_filter_team_pred = st.multiselect(
+            "Filter Event Type", options=team_df_pred['Event_Type'].unique(), default=team_df_pred['Event_Type'].unique()
+        )
+        team_df_filtered_pred = team_df_pred[team_df_pred['Event_Type'].isin(event_filter_team_pred)]
+        team_stats_pred = team_df_filtered_pred.groupby('Event_Type').size().reset_index(name='Count')
+        st.table(team_stats_pred)
 
 # ==========================
 # Predictions Page
