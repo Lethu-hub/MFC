@@ -46,11 +46,15 @@ if page == "Home":
                 </div>
                 """, unsafe_allow_html=True
             )
+# ==========================
+# Statistics Page
+# ==========================
 elif page == "Statistics":
     st.title("📊 MFC History & Stats")
     st.markdown("Explore player and match data so far — Data Exploration & Stats")
 
     from data_loader import load_all_data
+    from stats import central_tendency, measures_of_spread, categorical_counts
 
     # -----------------------------
     # Load datasets
@@ -60,8 +64,7 @@ elif page == "Statistics":
     matches_df = dfs["Matches"]
     events_df = dfs["Match Events"]
 
-    # Merge player names for easier analysis
-    df = events_df.merge(players_df, on="Player_ID")
+    df = events_df.merge(players_df, on="Player_ID", how="left")
 
     # -----------------------------
     # Sidebar filters
@@ -71,13 +74,13 @@ elif page == "Statistics":
         "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
     )
     player_filter = st.sidebar.multiselect(
-        "Select Player", options=players_df['Player_Name'].unique(), default=players_df['Player_Name'].unique()
+        "Select Player", options=df['Player_Name'].unique(), default=df['Player_Name'].unique()
     )
     event_filter = st.sidebar.multiselect(
         "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
     )
     match_filter = st.sidebar.selectbox(
-        "Select Match ID (optional for team stats)", options=[None]+df['Match_ID'].unique().tolist()
+        "Select Match (optional)", options=[None] + df['Match_ID'].unique().tolist()
     )
 
     # Apply filters
@@ -86,72 +89,70 @@ elif page == "Statistics":
         (df['Player_Name'].isin(player_filter)) &
         (df['Event_Type'].isin(event_filter))
     ]
+    if match_filter:
+        df_filtered = df_filtered[df_filtered['Match_ID'] == match_filter]
 
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
     # -----------------------------
-    # Tabs
+    # Tabs: Data Exploration / Player Stats / Team Stats
     # -----------------------------
-    tab_explore, tab_player, tab_team = st.tabs(["Data Exploration", "Player Stats", "Team Stats"])
+    tab1, tab2, tab3 = st.tabs(["Data Exploration", "Player Stats", "Team Stats"])
 
     # -----------------------------
-    # Data Exploration Tab
+    # Tab 1: Data Exploration
     # -----------------------------
-    with tab_explore:
+    with tab1:
         st.subheader("Raw Data")
         st.dataframe(df_filtered, use_container_width=True)
 
+        numeric_cols = df_filtered.select_dtypes(include='number').columns.tolist()
+        cat_cols = df_filtered.select_dtypes(include='object').columns.tolist()
+
+        if numeric_cols:
+            st.subheader("Central Tendency")
+            st.write(central_tendency(df_filtered, numeric_cols))
+            st.subheader("Measures of Spread")
+            st.write(measures_of_spread(df_filtered, numeric_cols))
+
+        if cat_cols:
+            st.subheader("Categorical Counts")
+            counts = categorical_counts(df_filtered, cat_cols)
+            for col, series in counts.items():
+                st.write(f"Counts for {col}")
+                st.write(series)
+
     # -----------------------------
-    # Player Stats Tab
+    # Tab 2: Player Stats
     # -----------------------------
-    with tab_player:
+    with tab2:
         st.subheader("Player-Level Summary")
         if df_filtered.empty:
-            st.info("No player data available for selected filters.")
+            st.info("No data available for selected filters.")
         else:
-            player_summary = df_filtered.groupby("Player_Name").agg(
-                Matches_Played=("Match_ID", "nunique"),
-                Goals=lambda x: (x=="Goal").sum(),
-                Assists=lambda x: (x=="Assist").sum(),
-                Yellow_Cards=lambda x: (x=="Yellow Card").sum(),
-                Red_Cards=lambda x: (x=="Red Card").sum(),
-                Fouls=lambda x: (x=="Foul").sum()
-            ).reset_index()
+            agg_dict = {
+                "Match_ID": pd.Series.nunique
+            }
+            for event in df_filtered['Event_Type'].unique():
+                agg_dict[event] = lambda x, e=event: (x == e).sum()
 
+            player_summary = df_filtered.groupby("Player_Name").agg(**agg_dict).reset_index()
+            player_summary.rename(columns={"Match_ID": "Matches_Played"}, inplace=True)
             st.dataframe(player_summary.sort_values(by="Matches_Played", ascending=False), use_container_width=True)
 
     # -----------------------------
-    # Team Stats Tab
+    # Tab 3: Team Stats
     # -----------------------------
-    with tab_team:
-        st.subheader("Team-Level Summary (Selected Match)")
-        if match_filter is None:
-            st.info("Select a Match ID to see team-level stats.")
+    with tab3:
+        st.subheader("Team-Level Summary")
+        if df_filtered.empty:
+            st.info("No data available for selected filters.")
         else:
-            team_df = df[df['Match_ID'] == match_filter]
-
-            # Apply event filter
-            if event_filter:
-                team_df = team_df[team_df['Event_Type'].isin(event_filter)]
-
-            if team_df.empty:
-                st.warning("No events match the selected filters for this match.")
-            else:
-                team_summary = team_df.groupby("Match_ID").agg(
-                    Goals=("Event_Type", lambda x: (x=="Goal").sum()),
-                    Assists=("Event_Type", lambda x: (x=="Assist").sum()),
-                    Yellow_Cards=("Event_Type", lambda x: (x=="Yellow Card").sum()),
-                    Red_Cards=("Event_Type", lambda x: (x=="Red Card").sum()),
-                    Fouls=("Event_Type", lambda x: (x=="Foul").sum())
-                ).reset_index()
-
-                st.dataframe(team_summary, use_container_width=True)
-
-                st.markdown("**Players in this match:**")
-                st.dataframe(
-                    team_df[["Player_Name", "Event_Type", "Minute"]].sort_values(by="Minute"),
-                    use_container_width=True
-                )
+            agg_dict = {}
+            for event in df_filtered['Event_Type'].unique():
+                agg_dict[event] = lambda x, e=event: (x == e).sum()
+            team_summary = df_filtered.agg(**agg_dict).to_frame(name="Total").reset_index().rename(columns={"index": "Event_Type"})
+            st.dataframe(team_summary, use_container_width=True)
 
 # ==========================
 # Performance Page
