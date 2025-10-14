@@ -14,7 +14,7 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Home", "History", "Performance", "Predictions"])
 
 # ==========================
-# Home Page (unchanged)
+# Home Page
 # ==========================
 if page == "Home":
     st.title("🏟️ Welcome to MFC Dashboard")
@@ -44,25 +44,6 @@ if page == "Home":
             )
 
 # ==========================
-# Team Analytics Function
-# ==========================
-def team_event_summary(events_df, matches_df, team_name="MFC"):
-    """Aggregate player events into team-level stats per match."""
-    df = events_df.merge(matches_df, on="Match_ID", how="left")
-    df_team = df[(df['HomeTeam'].str.upper() == team_name.upper()) |
-                 (df['AwayTeam'].str.upper() == team_name.upper())]
-    
-    numeric_cols = df_team.select_dtypes(include="number").columns.tolist()
-    team_summary = df_team.groupby('Match_ID')[numeric_cols].sum().reset_index()
-    
-    # Add match info back
-    team_summary = team_summary.merge(
-        matches_df[['Match_ID', 'Date', 'HomeTeam', 'AwayTeam', 'Competition']],
-        on='Match_ID', how='left'
-    )
-    return team_summary
-
-# ==========================
 # History Page
 # ==========================
 elif page == "History":
@@ -73,16 +54,20 @@ elif page == "History":
     from stats import central_tendency, measures_of_spread, categorical_counts
     from charts import univariate_chart
 
+    # -----------------------------
     # Load datasets
+    # -----------------------------
     dfs = load_all_data()
     players_df = dfs["Players"]
     matches_df = dfs["Matches"]
     events_df = dfs["Match Events"]
 
-    # Merge player names
+    # Merge player names for easier analysis
     df = events_df.merge(players_df, on="Player_ID")
 
+    # -----------------------------
     # Sidebar filters
+    # -----------------------------
     st.sidebar.header("Filters")
     season_filter = st.sidebar.multiselect(
         "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
@@ -100,19 +85,30 @@ elif page == "History":
         (df['Player_Name'].isin(player_filter)) &
         (df['Event_Type'].isin(event_filter))
     ]
+
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
     # -----------------------------
-    # Show team-level summary
-    team_summary = team_event_summary(events_df, matches_df, team_name="MFC")
-    st.subheader("⚽ MFC Team-Level Stats")
-    st.dataframe(team_summary, use_container_width=True)
+    # Team-level analytics
+    # -----------------------------
+    st.subheader("🏆 Team-Level Summary (MFC)")
+    team_df = df_filtered[df_filtered['Club'].str.upper() == "MFC"]
+    if not team_df.empty:
+        team_summary = team_df.groupby('Event_Type')['Event_Value'].sum().reset_index()
+        st.dataframe(team_summary)
+    else:
+        st.info("No team events found for selected filters.")
 
+    # -----------------------------
     # Tabs
+    # -----------------------------
     tab1, tab2, tab3 = st.tabs(["Raw Data", "Summary Stats", "Univariate Analysis"])
+
+    # Tab 1: Raw Data
     with tab1:
         st.dataframe(df_filtered)
 
+    # Tab 2: Summary Stats
     with tab2:
         numeric_cols = df_filtered.select_dtypes(include='number').columns.tolist()
         cat_cols = df_filtered.select_dtypes(include='object').columns.tolist()
@@ -130,6 +126,7 @@ elif page == "History":
                 st.write(f"Counts for {col}")
                 st.write(series)
 
+    # Tab 3: Univariate Analysis
     with tab3:
         col_to_plot = st.selectbox("Select Column", df_filtered.columns)
         chart_type = st.selectbox("Chart Type", ["Histogram", "Pie", "Boxplot", "Violin", "Cumulative"])
@@ -143,8 +140,11 @@ elif page == "History":
 # Predictions Page
 # ==========================
 elif page == "Predictions":
-    st.title("⚡ MFC Player Predictions: Upcoming Matches")
+    st.title("⚡ MFC Player Predictions & Team Analytics")
 
+    # -----------------------------
+    # Load Data
+    # -----------------------------
     @st.cache_data
     def load_data():
         try:
@@ -163,13 +163,110 @@ elif page == "Predictions":
         return players_df, events_df, upcoming_df
 
     players_df, events_df, upcoming_df = load_data()
+
     if players_df is None or events_df is None:
         st.stop()
 
-    # Show team-level stats
-    team_summary = team_event_summary(events_df, pd.read_csv("matches.csv"), team_name="MFC")
-    st.subheader("⚽ MFC Team-Level Stats")
-    st.dataframe(team_summary, use_container_width=True)
+    # -----------------------------
+    # Upcoming Matches
+    # -----------------------------
+    if upcoming_df.empty:
+        st.info("✅ No upcoming matches available for prediction.")
+    else:
+        mfc_upcoming = upcoming_df[
+            (upcoming_df["HomeTeam"].str.upper() == "MFC") |
+            (upcoming_df["AwayTeam"].str.upper() == "MFC")
+        ]
 
-    # Remaining player predictions code here (unchanged)
-    # ...
+        if mfc_upcoming.empty:
+            st.info("No upcoming MFC matches scheduled.")
+        else:
+            st.subheader("📅 Upcoming MFC Matches")
+            st.dataframe(
+                mfc_upcoming[["Date", "HomeTeam", "AwayTeam", "Competition", "Venue"]],
+                hide_index=True,
+                use_container_width=True
+            )
+
+    # -----------------------------
+    # Player Predictions
+    # -----------------------------
+    st.subheader("⚡ Player-Level Predictions")
+    df = events_df.merge(players_df, on="Player_ID", how="inner")
+    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+
+    target_col = st.sidebar.selectbox("🎯 Target Variable", numeric_cols)
+    feature_cols = st.sidebar.multiselect(
+        "🧩 Features for Prediction",
+        [c for c in df.columns if c != target_col]
+    )
+
+    if feature_cols:
+        X = df[feature_cols]
+        y = df[target_col]
+        X_encoded = pd.get_dummies(X, drop_first=True)
+
+        from sklearn.model_selection import train_test_split
+        from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+        import plotly.express as px
+
+        X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
+
+        if st.sidebar.button("🚀 Train & Predict"):
+            if y.dtype in ["int64", "float64"] and y.nunique() > 5:
+                model = RandomForestRegressor(n_estimators=100, random_state=42)
+                model_type = "Regression"
+            else:
+                model = RandomForestClassifier(n_estimators=100, random_state=42)
+                model_type = "Classification"
+
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+
+            st.subheader(f"🧠 Model Type: {model_type}")
+            st.dataframe(pd.DataFrame({"Actual": y_test, "Predicted": y_pred}).head(20))
+
+            # Player-level predictions
+            mfc_players = players_df[players_df["Club"].str.upper() == "MFC"].copy()
+            upcoming_features = pd.DataFrame()
+
+            for col in feature_cols:
+                if col in df.columns:
+                    player_avg = df.groupby("Player_ID")[col].mean()
+                    upcoming_features[col] = mfc_players["Player_ID"].map(player_avg)
+
+            upcoming_features = pd.get_dummies(upcoming_features, drop_first=True)
+            upcoming_features = upcoming_features.reindex(columns=X_encoded.columns, fill_value=0)
+
+            predictions = model.predict(upcoming_features)
+            mfc_players["Predicted_" + target_col] = predictions
+
+            st.dataframe(
+                mfc_players[["Player_Name", "Predicted_" + target_col]].sort_values(
+                    by="Predicted_" + target_col, ascending=False
+                ).reset_index(drop=True)
+            )
+
+            # -----------------------------
+            # Team-level predictions
+            # -----------------------------
+            st.subheader("🏆 Team-Level Predictions")
+            team_summary = mfc_players[numeric_cols].sum().reset_index()
+            team_summary.columns = ["Metric", "Total"]
+            st.dataframe(team_summary)
+
+            # Feature Importance
+            feat_imp = pd.DataFrame({
+                "Feature": X_encoded.columns,
+                "Importance": model.feature_importances_
+            }).sort_values(by="Importance", ascending=False)
+
+            st.write("### 🔍 Top Features Driving Predictions")
+            st.dataframe(feat_imp.head(15))
+            st.plotly_chart(
+                px.bar(feat_imp.head(15), x="Feature", y="Importance", title="Feature Importance (Top 15)"),
+                use_container_width=True
+            )
+    else:
+        st.info("Select at least one feature to enable predictions.")
+
