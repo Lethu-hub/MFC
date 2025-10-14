@@ -278,8 +278,3 @@ elif page == "Predictions":
                     use_container_width=True
                 )
 
-                    "Importance": model.feature_importances_
-                    }).sort_values(by="Importance", ascending=False)
-                    st.write("### Top Features")
-                    st.dataframe(feat_imp.head(20))
-                    st.plotly_chart(px.bar(feat_imp.head(20), x="Feature", y="Importance", title="Feature Importance"))
