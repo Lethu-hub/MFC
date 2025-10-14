@@ -132,25 +132,36 @@ elif page == "Statistics":
     # Tab3: Team Stats
     with tab3:
         st.subheader("🏆 Team-Level Summary (MFC)")
+
         if df_filtered.empty:
             st.info("No data available for selected filters.")
         else:
-            # Automatically select players based on Match ID
+            # Auto-select players based on selected matches (ignore player_filter)
             selected_matches = match_filter
             match_players = df[df['Match_ID'].isin(selected_matches)]['Player_Name'].unique()
+    
+            # Show these players in a disabled multiselect
+            st.multiselect("Players in Selected Match(es)", match_players, default=match_players, disabled=True)
+    
+            # Filter df_filtered only to these match players
             df_team = df_filtered[df_filtered['Player_Name'].isin(match_players)]
-
+    
+            # Aggregate team-level stats
             team_summary = df_team.groupby("Match_ID").agg(
                 Total_Events=("Event_Type", "count")
             ).reset_index()
-
+    
+            # Count events by type
             event_types = df_team['Event_Type'].unique()
             for event in event_types:
                 team_summary[event] = team_summary['Match_ID'].apply(
                     lambda m: df_team[(df_team['Match_ID'] == m) & (df_team['Event_Type'] == event)].shape[0]
                 )
-
-            st.dataframe(team_summary.sort_values(by="Match_ID", ascending=True), width='stretch')
+    
+            st.dataframe(
+                team_summary.sort_values(by="Match_ID", ascending=True),
+                width='stretch'
+            )
 
 # ==========================
 # Performance Page
