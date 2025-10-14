@@ -49,7 +49,7 @@ if page == "Home":
 # ==========================
 # Statistics Page
 # ==========================
-elif page == "Statitics":
+elif page == "Statistics":
     st.title("📊 MFC Stats")
     st.markdown("Explore player and match data so far — Data Exploration & Stats")
 
