@@ -53,24 +53,14 @@ elif page == "Statistics":
     st.title("📊 MFC Stats")
     st.markdown("Explore player and match data so far — Data Exploration & Stats")
 
-    from data_loader import load_all_data
-    from stats import central_tendency, measures_of_spread, categorical_counts
-    from charts import univariate_chart  # used in performance
-
-    # -----------------------------
     # Load datasets
-    # -----------------------------
     dfs = load_all_data()
     players_df = dfs["Players"]
     matches_df = dfs["Matches"]
     events_df = dfs["Match Events"]
-
-    # Merge player names for easier analysis
     df = events_df.merge(players_df, on="Player_ID")
 
-    # -----------------------------
     # Sidebar filters
-    # -----------------------------
     st.sidebar.header("Filters")
     season_filter = st.sidebar.multiselect(
         "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
@@ -85,7 +75,6 @@ elif page == "Statistics":
         "Select Match ID", options=df['Match_ID'].unique(), default=df['Match_ID'].unique()
     )
 
-    # Apply filters
     df_filtered = df[
         (df['Season'].isin(season_filter)) &
         (df['Player_Name'].isin(player_filter)) &
@@ -95,14 +84,10 @@ elif page == "Statistics":
 
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
-    # -----------------------------
     # Tabs
-    # -----------------------------
     tab1, tab2, tab3 = st.tabs(["Data Exploration", "Player Stats", "Team Stats"])
 
-    # -----------------------------
-    # Tab 1: Data Exploration
-    # -----------------------------
+    # Tab1: Data Exploration
     with tab1:
         st.subheader("📊 Explore Data")
         st.dataframe(df_filtered, width='stretch')
@@ -123,20 +108,16 @@ elif page == "Statistics":
                 st.write(f"Counts for {col}")
                 st.write(series)
 
-    # -----------------------------
-    # Tab 2: Player Stats
-    # -----------------------------
+    # Tab2: Player Stats
     with tab2:
         st.subheader("Player-Level Summary")
         if df_filtered.empty:
             st.info("No data available for selected filters.")
         else:
-            # Count matches per player
             player_summary = df_filtered.groupby("Player_Name").agg(
                 Matches_Played=("Match_ID", "nunique")
             ).reset_index()
 
-            # Count each event per player
             event_types = df_filtered['Event_Type'].unique()
             for event in event_types:
                 player_summary[event] = player_summary['Player_Name'].apply(
@@ -148,38 +129,28 @@ elif page == "Statistics":
                 width='stretch'
             )
 
-    # -----------------------------
-# Tab 3: Team Stats
-# -----------------------------
-with tab3:
-    st.subheader("🏆 Team-Level Summary (MFC)")
+    # Tab3: Team Stats
+    with tab3:
+        st.subheader("🏆 Team-Level Summary (MFC)")
+        if df_filtered.empty:
+            st.info("No data available for selected filters.")
+        else:
+            # Automatically select players based on Match ID
+            selected_matches = match_filter
+            match_players = df[df['Match_ID'].isin(selected_matches)]['Player_Name'].unique()
+            df_team = df_filtered[df_filtered['Player_Name'].isin(match_players)]
 
-    if df_filtered.empty:
-        st.info("No data available for selected filters.")
-    else:
-        # Determine players automatically based on selected matches
-        selected_matches = match_filter  # from sidebar
-        match_players = df[df['Match_ID'].isin(selected_matches)]['Player_Name'].unique()
+            team_summary = df_team.groupby("Match_ID").agg(
+                Total_Events=("Event_Type", "count")
+            ).reset_index()
 
-        # Filter df to include only these players
-        df_team = df_filtered[df_filtered['Player_Name'].isin(match_players)]
+            event_types = df_team['Event_Type'].unique()
+            for event in event_types:
+                team_summary[event] = team_summary['Match_ID'].apply(
+                    lambda m: df_team[(df_team['Match_ID'] == m) & (df_team['Event_Type'] == event)].shape[0]
+                )
 
-        # Aggregate team-level stats
-        team_summary = df_team.groupby("Match_ID").agg(
-            Total_Events=("Event_Type", "count")
-        ).reset_index()
-
-        # Count events by type
-        event_types = df_team['Event_Type'].unique()
-        for event in event_types:
-            team_summary[event] = team_summary['Match_ID'].apply(
-                lambda m: df_team[(df_team['Match_ID'] == m) & (df_team['Event_Type'] == event)].shape[0]
-            )
-
-        st.dataframe(
-            team_summary.sort_values(by="Match_ID", ascending=True),
-            width='stretch'
-        )
+            st.dataframe(team_summary.sort_values(by="Match_ID", ascending=True), width='stretch')
 
 # ==========================
 # Performance Page
