@@ -167,10 +167,84 @@ elif page == "Statistics":
 # Performance Page
 # ==========================
 elif page == "Performance":
-    st.title("📈 Team & Player Performance")
-    # Logic similar to History page; you can reuse the tabs with team stats included
-    # Could include season-wide aggregates, player vs team comparison, etc.
-    # For brevity, same structure as History with Team Tab included
+    st.title("📈 MFC Performance Dashboard")
+    st.markdown("Visualize player and team performance trends across matches and seasons.")
+
+    from data_loader import load_all_data
+    from charts import univariate_chart  # import your visualization helpers
+
+    # -----------------------------
+    # Load datasets
+    # -----------------------------
+    dfs = load_all_data()
+    players_df = dfs["Players"]
+    matches_df = dfs["Matches"]
+    events_df = dfs["Match Events"]
+
+    # Merge player names for analysis
+    df = events_df.merge(players_df, on="Player_ID")
+
+    # -----------------------------
+    # Sidebar filters
+    # -----------------------------
+    st.sidebar.header("Filters")
+    season_filter = st.sidebar.multiselect(
+        "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
+    )
+    player_filter = st.sidebar.multiselect(
+        "Select Player", options=players_df['Player_Name'].unique(), default=players_df['Player_Name'].unique()
+    )
+    event_filter = st.sidebar.multiselect(
+        "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
+    )
+    match_filter = st.sidebar.multiselect(
+        "Select Match ID", options=df['Match_ID'].unique(), default=df['Match_ID'].unique()
+    )
+
+    # Apply filters
+    df_filtered = df[
+        (df['Season'].isin(season_filter)) &
+        (df['Player_Name'].isin(player_filter)) &
+        (df['Event_Type'].isin(event_filter)) &
+        (df['Match_ID'].isin(match_filter))
+    ]
+
+    st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
+
+    # -----------------------------
+    # Tabs
+    # -----------------------------
+    tab1, tab2 = st.tabs(["Player Performance", "Team Performance"])
+
+    # ==============================
+    # Tab 1: Player Performance
+    # ==============================
+    with tab1:
+        st.subheader("🏃 Player Performance Overview")
+
+        if df_filtered.empty:
+            st.info("No data for selected filters.")
+        else:
+            st.markdown("### Event Distribution per Player")
+            univariate_chart(df_filtered, x='Player_Name', hue='Event_Type', title="Events by Player")
+
+            st.markdown("### Performance Over Matches")
+            univariate_chart(df_filtered, x='Match_ID', hue='Player_Name', title="Player Events per Match")
+
+    # ==============================
+    # Tab 2: Team Performance
+    # ==============================
+    with tab2:
+        st.subheader("⚽ Team Performance Trends")
+
+        if df_filtered.empty:
+            st.info("No data for selected filters.")
+        else:
+            st.markdown("### Event Breakdown per Match")
+            univariate_chart(df_filtered, x='Match_ID', hue='Event_Type', title="Event Counts per Match")
+
+            st.markdown("### Event Trends per Season")
+            univariate_chart(df_filtered, x='Season', hue='Event_Type', title="Events by Season")
 
 # ==========================
 # Predictions Page
