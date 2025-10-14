@@ -149,30 +149,37 @@ elif page == "Statistics":
             )
 
     # -----------------------------
-    # Tab 3: Team Stats
-    # -----------------------------
-    with tab3:
-        st.subheader("🏆 Team-Level Summary (MFC)")
+# Tab 3: Team Stats
+# -----------------------------
+with tab3:
+    st.subheader("🏆 Team-Level Summary (MFC)")
 
-        if df_filtered.empty:
-            st.info("No data available for selected filters.")
-        else:
-            # If a specific match is selected, aggregate for that match
-            team_summary = df_filtered.groupby("Match_ID").agg(
-                Total_Events=("Event_Type", "count")
-            ).reset_index()
+    if df_filtered.empty:
+        st.info("No data available for selected filters.")
+    else:
+        # Determine players automatically based on selected matches
+        selected_matches = match_filter  # from sidebar
+        match_players = df[df['Match_ID'].isin(selected_matches)]['Player_Name'].unique()
 
-            # Count events by type
-            event_types = df_filtered['Event_Type'].unique()
-            for event in event_types:
-                team_summary[event] = team_summary['Match_ID'].apply(
-                    lambda m: df_filtered[(df_filtered['Match_ID'] == m) & (df_filtered['Event_Type'] == event)].shape[0]
-                )
+        # Filter df to include only these players
+        df_team = df_filtered[df_filtered['Player_Name'].isin(match_players)]
 
-            st.dataframe(
-                team_summary.sort_values(by="Match_ID", ascending=True),
-                width='stretch'
+        # Aggregate team-level stats
+        team_summary = df_team.groupby("Match_ID").agg(
+            Total_Events=("Event_Type", "count")
+        ).reset_index()
+
+        # Count events by type
+        event_types = df_team['Event_Type'].unique()
+        for event in event_types:
+            team_summary[event] = team_summary['Match_ID'].apply(
+                lambda m: df_team[(df_team['Match_ID'] == m) & (df_team['Event_Type'] == event)].shape[0]
             )
+
+        st.dataframe(
+            team_summary.sort_values(by="Match_ID", ascending=True),
+            width='stretch'
+        )
 
 # ==========================
 # Performance Page
