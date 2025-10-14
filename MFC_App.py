@@ -53,7 +53,15 @@ elif page == "History":
     st.title("📊 MFC History")
     st.markdown("Explore player and match data so far — Data Exploration & Univariate Analysis")
 
+    from data_loader import load_all_data
+    from stats import central_tendency, measures_of_spread, categorical_counts
+    from charts import univariate_chart  # We'll extend this to support cumulative and frequency polygons
+    import plotly.express as px
+    import plotly.graph_objects as go
+
+    # -----------------------------
     # Load datasets
+    # -----------------------------
     dfs = load_all_data()
     players_df = dfs["Players"]
     matches_df = dfs["Matches"]
@@ -62,7 +70,9 @@ elif page == "History":
     # Merge player names for easier analysis
     df = events_df.merge(players_df, on="Player_ID")
 
+    # -----------------------------
     # Sidebar filters
+    # -----------------------------
     st.sidebar.header("Filters")
     season_filter = st.sidebar.multiselect(
         "Select Season", options=df['Season'].unique(), default=df['Season'].unique()
@@ -73,6 +83,9 @@ elif page == "History":
     event_filter = st.sidebar.multiselect(
         "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
     )
+    match_filter = st.sidebar.selectbox(
+        "Select Match (optional)", options=[None]+list(df['Match_ID'].unique())
+    )
 
     # Apply filters
     df_filtered = df[
@@ -81,10 +94,16 @@ elif page == "History":
         (df['Event_Type'].isin(event_filter))
     ]
 
+    if match_filter:
+        # Automatically pick all players for that match
+        df_filtered = df_filtered[df_filtered['Match_ID'] == match_filter]
+
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
-    # Tabs: Raw, Summary, Univariate, Team
-    tab1, tab2, tab3, tab4 = st.tabs(["Raw Data", "Summary Stats", "Univariate Analysis", "Team Stats"])
+    # -----------------------------
+    # Tabs
+    # -----------------------------
+    tab1, tab2, tab3, tab4 = st.tabs(["Raw Data", "Summary Stats", "Univariate Analysis", "Team-Level Stats"])
 
     # Tab 1: Raw Data
     with tab1:
@@ -111,38 +130,46 @@ elif page == "History":
     # Tab 3: Univariate Analysis
     with tab3:
         col_to_plot = st.selectbox("Select Column", df_filtered.columns)
-        chart_type = st.selectbox("Chart Type", ["Histogram", "Pie", "Boxplot", "Violin", "Cumulative"])
-        fig = univariate_chart(df_filtered, col_to_plot, chart_type)
+        chart_type = st.selectbox(
+            "Chart Type",
+            ["Histogram", "Pie", "Boxplot", "Violin", "Cumulative Bar Graph", "Frequency Polygon"]
+        )
+
+        if chart_type in ["Cumulative Bar Graph", "Frequency Polygon"]:
+            # Aggregate by match or by numeric x-axis
+            if 'Match_ID' in df_filtered.columns and chart_type == "Cumulative Bar Graph":
+                df_agg = df_filtered.groupby('Match_ID')[col_to_plot].count().reset_index()
+                fig = px.bar(df_agg, x='Match_ID', y=col_to_plot, title=f"Cumulative {col_to_plot} per Match")
+            elif chart_type == "Frequency Polygon":
+                df_sorted = df_filtered.sort_values(by=col_to_plot)
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=df_sorted[col_to_plot],
+                    y=df_sorted[col_to_plot].rank(method='first'),
+                    mode='lines+markers',
+                    name='Frequency Polygon'
+                ))
+                fig.update_layout(title=f"Frequency Polygon of {col_to_plot}")
+        else:
+            # Use existing chart function for standard charts
+            fig = univariate_chart(df_filtered, col_to_plot, chart_type)
+
         if fig:
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("Cumulative chart requires a numeric column.")
+            st.warning(f"{chart_type} requires numeric data.")
 
-    # Tab 4: Team Stats
+    # Tab 4: Team-Level Stats
     with tab4:
-        st.subheader("🏆 Team-Level Stats")
-
-        # Select match
-        match_ids = df_filtered['Match_ID'].unique()
-        selected_match = st.selectbox("Select Match", match_ids)
-
-        # Filter team data
-        team_df = df_filtered[df_filtered['Match_ID'] == selected_match]
-
-        # Auto-populate players (greyed out)
-        match_players = team_df['Player_Name'].unique()
-        st.multiselect("Players in Match", match_players, default=match_players, disabled=True)
-
-        # Optional: Event filter
-        event_filter_team = st.multiselect(
-            "Filter Event Type", options=team_df['Event_Type'].unique(), default=team_df['Event_Type'].unique()
-        )
-        team_df_filtered = team_df[team_df['Event_Type'].isin(event_filter_team)]
-
-        # Aggregate team stats
-        team_stats = team_df_filtered.groupby('Event_Type').size().reset_index(name='Count')
-        st.table(team_stats)
-
+        st.subheader("🏆 Team-Level Summary")
+        if df_filtered.empty:
+            st.info("No data to show team stats.")
+        else:
+            # Aggregate numeric events per match
+            numeric_cols = df_filtered.select_dtypes(include='number').columns.tolist()
+            team_summary = df_filtered.groupby('Match_ID')[numeric_cols].sum().reset_index()
+            st.dataframe(team_summary)
+            
 # ==========================
 # Performance Page
 # ==========================
