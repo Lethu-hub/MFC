@@ -46,9 +46,12 @@ if page == "Home":
                 </div>
                 """, unsafe_allow_html=True
             )
+# ==========================
+# Statistics Page
+# ==========================
 elif page == "Statistics":
     st.title("📊 MFC Statistics")
-    st.markdown("Explore player and match data so far — Player & Team Analytics")
+    st.markdown("Explore player and match statistics — Player & Team Analytics")
 
     from data_loader import load_all_data
 
@@ -76,6 +79,9 @@ elif page == "Statistics":
     event_filter = st.sidebar.multiselect(
         "Select Event Type", options=df['Event_Type'].unique(), default=df['Event_Type'].unique()
     )
+    match_filter = st.sidebar.selectbox(
+        "Select Match (for Team Stats)", options=df['Match_ID'].unique()
+    )
 
     # Apply filters
     df_filtered = df[
@@ -91,29 +97,39 @@ elif page == "Statistics":
     # -----------------------------
     tab1, tab2 = st.tabs(["Player Stats", "Team Stats"])
 
-    # Tab 1: Player Stats
+    # -----------------------------
+    # Player Stats
+    # -----------------------------
     with tab1:
         player_summary = df_filtered.groupby("Player_Name").agg(
             Matches_Played=("Match_ID", "nunique"),
-            Goals=lambda x: (x=="Goal").sum(),
-            Assists=lambda x: (x=="Assist").sum(),
-            Yellow_Cards=lambda x: (x=="Yellow Card").sum(),
-            Red_Cards=lambda x: (x=="Red Card").sum(),
-            Fouls=lambda x: (x=="Foul").sum()
+            Goals=("Event_Type", lambda x: (x=="Goal").sum()),
+            Assists=("Event_Type", lambda x: (x=="Assist").sum()),
+            Yellow_Cards=("Event_Type", lambda x: (x=="Yellow Card").sum()),
+            Red_Cards=("Event_Type", lambda x: (x=="Red Card").sum()),
+            Fouls=("Event_Type", lambda x: (x=="Foul").sum())
         ).reset_index()
         st.dataframe(player_summary.sort_values(by="Matches_Played", ascending=False), use_container_width=True)
 
-    # Tab 2: Team Stats
+    # -----------------------------
+    # Team Stats
+    # -----------------------------
     with tab2:
-        team_summary = df_filtered.groupby("Match_ID").agg(
-            Goals=lambda x: (x=="Goal").sum(),
-            Assists=lambda x: (x=="Assist").sum(),
-            Yellow_Cards=lambda x: (x=="Yellow Card").sum(),
-            Red_Cards=lambda x: (x=="Red Card").sum(),
-            Fouls=lambda x: (x=="Foul").sum()
-        ).reset_index()
-        st.dataframe(team_summary.sort_values(by="Match_ID"), use_container_width=True)
+        # Automatically pick only players who played in the selected match
+        team_df = df[df['Match_ID'] == match_filter]
 
+        team_summary = team_df.groupby("Match_ID").agg(
+            Goals=("Event_Type", lambda x: (x=="Goal").sum()),
+            Assists=("Event_Type", lambda x: (x=="Assist").sum()),
+            Yellow_Cards=("Event_Type", lambda x: (x=="Yellow Card").sum()),
+            Red_Cards=("Event_Type", lambda x: (x=="Red Card").sum()),
+            Fouls=("Event_Type", lambda x: (x=="Foul").sum())
+        ).reset_index()
+        st.dataframe(team_summary, use_container_width=True)
+
+        st.markdown("**Players in this match:**")
+        st.dataframe(team_df[["Player_Name", "Event_Type", "Minute"]].sort_values(by="Minute"), use_container_width=True)
+        
 # ==========================
 # Performance Page
 # ==========================
