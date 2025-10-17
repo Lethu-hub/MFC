@@ -6,6 +6,9 @@ from charts import univariate_chart
 from datetime import datetime
 from analytics_dashboard import display_analytics
 
+import streamlit as st
+import pandas as pd
+
 # ==========================
 # Page config
 # ==========================
@@ -15,9 +18,85 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# ==========================
+# Sidebar
+# ==========================
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Home", "Statistics", "Performance", "Predictions"])
 
+# ==========================
+# Detect theme and set colors
+# ==========================
+try:
+    theme = st.get_option("theme.base")
+except:
+    theme = "light"  # fallback
+
+if theme == "dark":
+    card_bg = "#2C2C2C"
+    text_color = "#F5F5F5"
+    border_color = "#555555"
+else:
+    card_bg = "#f9f9f9"
+    text_color = "#000000"
+    border_color = "#e1e1e1"
+
+# ==========================
+# Add hover CSS
+# ==========================
+st.markdown(
+    f"""
+    <style>
+    .match-card {{
+        border:1px solid {border_color};
+        padding:15px;
+        border-radius:10px;
+        margin-bottom:10px;
+        background-color:{card_bg};
+        color:{text_color};
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }}
+    .match-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ==========================
+# Home Page
+# ==========================
+if page == "Home":
+    st.title("🏟️ Welcome to MFC Dashboard")
+    st.subheader("Upcoming Matches")
+    try:
+        upcoming_matches_df = pd.read_csv("upcoming_matches.csv")
+        upcoming_matches_df['Date'] = pd.to_datetime(upcoming_matches_df['Date'], errors='coerce')
+        upcoming_matches_df = upcoming_matches_df[upcoming_matches_df['Date'] >= pd.Timestamp.today()]
+    except FileNotFoundError:
+        st.error("upcoming_matches.csv not found!")
+        upcoming_matches_df = pd.DataFrame()
+
+    if upcoming_matches_df.empty:
+        st.info("No upcoming matches scheduled yet!")
+    else:
+        upcoming_matches_df = upcoming_matches_df.sort_values(by='Date')
+        for _, match in upcoming_matches_df.head(3).iterrows():
+            st.markdown(
+                f"""
+                <div class="match-card">
+                    <h4 style="margin:0;">{match['HomeTeam']} vs {match['AwayTeam']}</h4>
+                    <p style="margin:0;">
+                        📅 Date: {match['Date'].strftime('%A, %d %B %Y')}<br>
+                        🏟️ Venue: {match['Venue']}<br>
+                        ⚽ Competition: {match['Competition']}
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 # ==========================
 # Home Page
 # ==========================
