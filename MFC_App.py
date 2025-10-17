@@ -173,7 +173,7 @@ elif page == "Performance":
 
     import plotly.express as px
     from data_loader import load_all_data
-    from analytics_dashboard import display_analytics  # NEW IMPORT
+    from analytics_dashboard import display_analytics  # Prebuilt analytics visuals
 
     # -----------------------------
     # Load datasets
@@ -237,6 +237,30 @@ elif page == "Performance":
                            title="Performance Timeline per Player", markers=True)
             st.plotly_chart(fig2, use_container_width=True)
 
+        # --- Custom Chart Builder ---
+        st.markdown("---")
+        st.markdown("### 🧩 Custom Player Analysis")
+
+        x_var = st.selectbox("Select X-axis", options=df_filtered.columns)
+        y_var = st.selectbox("Select Y-axis", options=[col for col in df_filtered.columns if col != x_var])
+        hue_var = st.selectbox("Select Color Group (optional)", options=[None] + list(df_filtered.columns))
+        chart_type = st.radio("Select Chart Type", ["Bar", "Line", "Scatter", "Pie"], horizontal=True)
+
+        if st.button("Generate Player Chart"):
+            if chart_type == "Bar":
+                fig = px.bar(df_filtered, x=x_var, y=y_var, color=hue_var, title=f"{y_var} vs {x_var}")
+            elif chart_type == "Line":
+                fig = px.line(df_filtered, x=x_var, y=y_var, color=hue_var, markers=True, title=f"{y_var} vs {x_var}")
+            elif chart_type == "Scatter":
+                fig = px.scatter(df_filtered, x=x_var, y=y_var, color=hue_var, title=f"{y_var} vs {x_var}")
+            elif chart_type == "Pie" and hue_var:
+                fig = px.pie(df_filtered, names=hue_var, title=f"Distribution by {hue_var}")
+            else:
+                st.warning("Pie chart requires a color group (category) selected.")
+                st.stop()
+
+            st.plotly_chart(fig, use_container_width=True)
+
     # ==============================
     # Tab 2: Team Performance
     # ==============================
@@ -255,6 +279,30 @@ elif page == "Performance":
             fig4 = px.bar(df_filtered, x="Season", color="Event_Type",
                           title="Events by Season", barmode="group")
             st.plotly_chart(fig4, use_container_width=True)
+
+        # --- Custom Chart Builder ---
+        st.markdown("---")
+        st.markdown("### 🧩 Custom Team Analysis")
+
+        x_var_team = st.selectbox("Select X-axis", options=df_filtered.columns, key="team_x")
+        y_var_team = st.selectbox("Select Y-axis", options=[col for col in df_filtered.columns if col != x_var_team], key="team_y")
+        hue_var_team = st.selectbox("Select Color Group (optional)", options=[None] + list(df_filtered.columns), key="team_hue")
+        chart_type_team = st.radio("Select Chart Type", ["Bar", "Line", "Scatter", "Pie"], horizontal=True, key="team_chart_type")
+
+        if st.button("Generate Team Chart"):
+            if chart_type_team == "Bar":
+                fig_team = px.bar(df_filtered, x=x_var_team, y=y_var_team, color=hue_var_team, title=f"{y_var_team} vs {x_var_team}")
+            elif chart_type_team == "Line":
+                fig_team = px.line(df_filtered, x=x_var_team, y=y_var_team, color=hue_var_team, markers=True, title=f"{y_var_team} vs {x_var_team}")
+            elif chart_type_team == "Scatter":
+                fig_team = px.scatter(df_filtered, x=x_var_team, y=y_var_team, color=hue_var_team, title=f"{y_var_team} vs {x_var_team}")
+            elif chart_type_team == "Pie" and hue_var_team:
+                fig_team = px.pie(df_filtered, names=hue_var_team, title=f"Distribution by {hue_var_team}")
+            else:
+                st.warning("Pie chart requires a color group (category) selected.")
+                st.stop()
+
+            st.plotly_chart(fig_team, use_container_width=True)
 
     # ==============================
     # Tab 3: Analytics (Pre-built insights)
