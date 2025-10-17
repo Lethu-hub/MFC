@@ -171,8 +171,9 @@ elif page == "Performance":
     st.title("📈 MFC Performance Dashboard")
     st.markdown("Visualize player and team performance trends across matches and seasons.")
 
+    import plotly.express as px
     from data_loader import load_all_data
-    from charts import univariate_chart
+    from analytics_dashboard import display_analytics  # NEW IMPORT
 
     # -----------------------------
     # Load datasets
@@ -186,100 +187,82 @@ elif page == "Performance":
     df = events_df.merge(players_df, on="Player_ID", how="left")
 
     # -----------------------------
-    # Sidebar Filters (Global)
+    # Sidebar filters
     # -----------------------------
     st.sidebar.header("Filters")
-
     season_filter = st.sidebar.multiselect(
-        "Select Season (optional)",
-        options=sorted(df["Season"].dropna().unique()),
-        default=None
+        "Select Season", options=df['Season'].unique(), default=list(df['Season'].unique())
     )
-
+    player_filter = st.sidebar.multiselect(
+        "Select Player", options=players_df['Player_Name'].unique(), default=list(players_df['Player_Name'].unique())
+    )
     event_filter = st.sidebar.multiselect(
-        "Select Event Type (optional)",
-        options=sorted(df["Event_Type"].dropna().unique()),
-        default=None
+        "Select Event Type", options=df['Event_Type'].unique(), default=list(df['Event_Type'].unique())
+    )
+    match_filter = st.sidebar.multiselect(
+        "Select Match ID", options=df['Match_ID'].unique(), default=list(df['Match_ID'].unique())
     )
 
-    # Apply global filters (optional)
-    df_filtered = df.copy()
-    if season_filter:
-        df_filtered = df_filtered[df_filtered["Season"].isin(season_filter)]
-    if event_filter:
-        df_filtered = df_filtered[df_filtered["Event_Type"].isin(event_filter)]
+    # Apply filters
+    df_filtered = df[
+        (df['Season'].isin(season_filter)) &
+        (df['Player_Name'].isin(player_filter)) &
+        (df['Event_Type'].isin(event_filter)) &
+        (df['Match_ID'].isin(match_filter))
+    ]
 
     st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
 
     # -----------------------------
-    # Tabs: Player vs Team
+    # Tabs
     # -----------------------------
-    tab1, tab2 = st.tabs(["🏃 Player Analytics", "⚽ Team Analytics"])
+    tab1, tab2, tab3 = st.tabs(["Player Performance", "Team Performance", "Analytics"])
 
     # ==============================
     # Tab 1: Player Performance
     # ==============================
     with tab1:
-        st.subheader("🏃 Player Performance Analytics")
+        st.subheader("🏃 Player Performance Overview")
 
-        # Player filter (optional)
-        player_filter = st.multiselect(
-            "Select Player (optional)",
-            options=sorted(players_df["Player_Name"].unique()),
-            default=None
-        )
-
-        if player_filter:
-            df_player = df_filtered[df_filtered["Player_Name"].isin(player_filter)]
-        else:
-            df_player = df_filtered
-
-        if df_player.empty:
-            st.info("No player data for selected filters.")
+        if df_filtered.empty:
+            st.info("No data for selected filters.")
         else:
             st.markdown("### 📊 Event Distribution per Player")
-            fig1 = px.histogram(df_player, x="Player_Name", color="Event_Type", title="Events by Player")
+            fig1 = px.histogram(df_filtered, x="Player_Name", color="Event_Type",
+                                title="Events by Player", barmode="group")
             st.plotly_chart(fig1, use_container_width=True)
 
             st.markdown("### 📈 Performance Over Matches")
-            fig2 = px.histogram(df_player, x="Match_ID", color="Player_Name", title="Player Events per Match")
+            fig2 = px.line(df_filtered, x="Match_ID", y="Minute", color="Player_Name",
+                           title="Performance Timeline per Player", markers=True)
             st.plotly_chart(fig2, use_container_width=True)
 
     # ==============================
     # Tab 2: Team Performance
     # ==============================
     with tab2:
-        st.subheader("⚽ Team Performance Analytics")
+        st.subheader("⚽ Team Performance Trends")
 
-        # Match filter — required for detailed breakdowns
-        match_filter = st.selectbox(
-            "Select Match ID",
-            options=sorted(matches_df["MatchID"].unique())
-        )
-
-        team_df = df_filtered.merge(matches_df, left_on="Match_ID", right_on="MatchID", how="left")
-        team_df_selected = team_df[team_df["MatchID"] == match_filter]
-
-        if team_df_selected.empty:
-            st.info("No team data for this match.")
+        if df_filtered.empty:
+            st.info("No data for selected filters.")
         else:
-            st.markdown(f"### 🧩 Event Breakdown for Match {match_filter}")
-            fig3 = px.histogram(team_df_selected, x="Event_Type", color="Player_Name",
-                                title=f"Event Distribution for Match {match_filter}")
+            st.markdown("### 📊 Event Breakdown per Match")
+            fig3 = px.histogram(df_filtered, x="Match_ID", color="Event_Type",
+                                title="Event Counts per Match", barmode="group")
             st.plotly_chart(fig3, use_container_width=True)
 
-            st.markdown("### 🕒 Event Trends per Season")
-            fig4 = px.histogram(df_filtered, x="Season", color="Event_Type", title="Event Counts by Season")
+            st.markdown("### 🔁 Event Trends per Season")
+            fig4 = px.bar(df_filtered, x="Season", color="Event_Type",
+                          title="Events by Season", barmode="group")
             st.plotly_chart(fig4, use_container_width=True)
 
-            st.markdown("### 👥 Player Contributions in Selected Match")
-            contrib = (
-                team_df_selected.groupby(["Player_Name", "Event_Type"])
-                .size().reset_index(name="Count")
-            )
-            fig5 = px.bar(contrib, x="Player_Name", y="Count", color="Event_Type",
-                          title=f"Player Contributions in Match {match_filter}")
-            st.plotly_chart(fig5, use_container_width=True)
+    # ==============================
+    # Tab 3: Analytics (Pre-built insights)
+    # ==============================
+    with tab3:
+        st.subheader("🧠 Advanced Analytics Dashboard")
+        st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
+        display_analytics()
 
 # ==========================
 # Predictions Page
