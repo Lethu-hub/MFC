@@ -312,57 +312,9 @@ elif page == "Performance":
         st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
         display_analytics()
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
-st.set_page_config(page_title="MFC Predictions", layout="wide")
-
-st.title("📊 Match Predictions Dashboard")
 
 # -----------------------------
-# Load datasets
-# -----------------------------
-matches_df = pd.read_csv("matches.csv")
-events_df = pd.read_csv("match_events.csv")
-players_df = pd.read_csv("players.csv")
-upcoming_df = pd.read_csv("upcoming_matches.csv")
-
-# Convert dates
-matches_df['Match_Date'] = pd.to_datetime(matches_df['Match_Date'], errors='coerce')
-upcoming_df['Date'] = pd.to_datetime(upcoming_df['Date'], errors='coerce')
-
-# Merge historical data
-events_with_players = events_df.merge(players_df, on="Player_ID")
-
-# -----------------------------
-# Upcoming matches selection
-# -----------------------------
-st.subheader("Upcoming Matches")
-upcoming_df = upcoming_df.sort_values("Date")
-selected_match = st.selectbox(
-    "Select Upcoming Match",
-    upcoming_df['MatchID'].astype(str) + " | " + upcoming_df['HomeTeam'] + " vs " + upcoming_df['AwayTeam']
-)
-
-# Extract selected match info
-match_id_only = selected_match.split(" | ")[0]
-match_row = upcoming_df[upcoming_df['MatchID'].astype(str) == match_id_only].iloc[0]
-st.markdown(f"**{match_row['HomeTeam']} vs {match_row['AwayTeam']}** on {match_row['Date'].strftime('%A, %d %B %Y')}")
-
-# -----------------------------
-# Filter historical events for prediction
-# -----------------------------
-# Get players for both teams
-home_team_players = players_df[players_df['Player_ID'].isin(events_with_players[events_with_players['Match_ID'].isin(
-    matches_df[matches_df['HomeTeam'] == match_row['HomeTeam']]['Match_ID']
-)]['Player_ID'])]
-away_team_players = players_df[players_df['Player_ID'].isin(events_with_players[events_with_players['Match_ID'].isin(
-    matches_df[matches_df['HomeTeam'] == match_row['AwayTeam']]['Match_ID']
-)]['Player_ID'])]
-
-# -----------------------------
-# Predictions placeholder (example)
+# Predictions placeholder 
 # -----------------------------
 st.subheader("Predicted Match Stats")
 predicted_events = {
