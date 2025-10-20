@@ -316,90 +316,88 @@ elif page == "Performance":
 # Predictions Page
 # ==========================
 elif page == "Predictions":
-    st.title("📊 Match Predictions Dashboard")
-    st.markdown("Predicted events for upcoming matches based on historical data.")
-
-   st.title("📊 MFC Predictions Dashboard")
-st.markdown(
-    "View historical trends of events and predicted counts for upcoming matches."
-)
-
-# -----------------------------
-# Load datasets
-# -----------------------------
-events_df = pd.read_csv("match_events.csv")
-matches_df = pd.read_csv("matches.csv")
-players_df = pd.read_csv("players.csv")
-upcoming_df = pd.read_csv("upcoming_matches.csv")
-
-# Merge player names if needed
-events_df = events_df.merge(players_df[['Player_ID','Player_Name']], on='Player_ID', how='left')
-
-# -----------------------------
-# Sidebar filters (optional)
-# -----------------------------
-st.sidebar.header("Filters")
-season_filter = st.sidebar.multiselect(
-    "Select Season(s)", options=events_df['Season'].unique(), default=events_df['Season'].unique()
-)
-player_filter = st.sidebar.multiselect(
-    "Select Player(s)", options=players_df['Player_Name'].unique(), default=players_df['Player_Name'].unique()
-)
-event_filter = st.sidebar.multiselect(
-    "Select Event Type(s)", options=events_df['Event_Type'].unique(), default=events_df['Event_Type'].unique()
-)
-
-# Apply filters
-df_filtered = events_df[
-    (events_df['Season'].isin(season_filter)) &
-    (events_df['Player_Name'].isin(player_filter)) &
-    (events_df['Event_Type'].isin(event_filter))
-]
-
-st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
-
-# -----------------------------
-# Display charts
-# -----------------------------
-st.subheader("🎯 Event Trends by Season")
-num_cols = 3  # number of charts per row
-cols = st.columns(num_cols)
-
-for i, event in enumerate(df_filtered['Event_Type'].unique()):
-    df_event = df_filtered[df_filtered['Event_Type'] == event]
-    event_counts = df_event.groupby('Season').size().reset_index(name='Count')
-
-    fig = px.bar(
-        event_counts,
-        x='Season',
-        y='Count',
-        text='Count',
-        title=event,
-        color='Count',
-        color_continuous_scale='Viridis',
-        height=250
+    st.title("📊 MFC Predictions Dashboard")
+    st.markdown(
+        "View historical trends of events and predicted counts for upcoming matches."
     )
 
-    with cols[i % num_cols]:
-        with st.expander(f"{event} (click to enlarge)"):
-            st.plotly_chart(fig, use_container_width=True)
+    # -----------------------------
+    # Load datasets
+    # -----------------------------
+    events_df = pd.read_csv("match_events.csv")
+    players_df = pd.read_csv("players.csv")
+    upcoming_df = pd.read_csv("upcoming_matches.csv")
 
-# -----------------------------
-# Upcoming Matches Predictions (Optional)
-# -----------------------------
-st.subheader("🗓️ Upcoming Matches")
-if upcoming_df.empty:
-    st.info("No upcoming matches available.")
-else:
-    upcoming_df['Date'] = pd.to_datetime(upcoming_df['Date'], errors='coerce')
-    upcoming_df = upcoming_df.sort_values('Date')
-    for _, match in upcoming_df.iterrows():
-        st.markdown(
-            f"""
-            <div style="border:1px solid #e1e1e1; padding:10px; border-radius:8px; margin-bottom:5px; background-color:#f7f7f7;">
-                <strong>{match['HomeTeam']} vs {match['AwayTeam']}</strong><br>
-                Date: {match['Date'].strftime('%A, %d %B %Y')} | Kickoff: {match['KickOffTime']}<br>
-                Venue: {match['Venue']} | Competition: {match['Competition']}
-            </div>
-            """, unsafe_allow_html=True
+    # Merge player names
+    events_df = events_df.merge(players_df[['Player_ID','Player_Name']], on='Player_ID', how='left')
+
+    # -----------------------------
+    # Sidebar filters
+    # -----------------------------
+    st.sidebar.header("Filters")
+    season_filter = st.sidebar.multiselect(
+        "Select Season(s)", options=events_df['Season'].unique(), default=events_df['Season'].unique()
+    )
+    player_filter = st.sidebar.multiselect(
+        "Select Player(s)", options=players_df['Player_Name'].unique(), default=players_df['Player_Name'].unique()
+    )
+    event_filter = st.sidebar.multiselect(
+        "Select Event Type(s)", options=events_df['Event_Type'].unique(), default=events_df['Event_Type'].unique()
+    )
+
+    # Apply filters
+    df_filtered = events_df[
+        (events_df['Season'].isin(season_filter)) &
+        (events_df['Player_Name'].isin(player_filter)) &
+        (events_df['Event_Type'].isin(event_filter))
+    ]
+
+    st.write(f"Filtered dataset: {df_filtered.shape[0]:,} rows")
+
+    # -----------------------------
+    # Event charts grid
+    # -----------------------------
+    st.subheader("🎯 Event Trends by Season")
+    num_cols = 3  # number of charts per row
+    cols = st.columns(num_cols)
+
+    for i, event in enumerate(df_filtered['Event_Type'].unique()):
+        df_event = df_filtered[df_filtered['Event_Type'] == event]
+        event_counts = df_event.groupby('Season').size().reset_index(name='Count')
+
+        fig = px.bar(
+            event_counts,
+            x='Season',
+            y='Count',
+            text='Count',
+            title=event,
+            color='Count',
+            color_continuous_scale='Viridis',
+            height=250
         )
+
+        # Place chart in column
+        with cols[i % num_cols]:
+            # Clickable expander to enlarge chart
+            with st.expander(f"{event} (click to enlarge)"):
+                st.plotly_chart(fig, use_container_width=True)
+
+    # -----------------------------
+    # Upcoming Matches Predictions
+    # -----------------------------
+    st.subheader("🗓️ Upcoming Matches")
+    if upcoming_df.empty:
+        st.info("No upcoming matches available.")
+    else:
+        upcoming_df['Date'] = pd.to_datetime(upcoming_df['Date'], errors='coerce')
+        upcoming_df = upcoming_df.sort_values('Date')
+        for _, match in upcoming_df.iterrows():
+            st.markdown(
+                f"""
+                <div style="border:1px solid #e1e1e1; padding:10px; border-radius:8px; margin-bottom:5px; background-color:#f7f7f7;">
+                    <strong>{match['HomeTeam']} vs {match['AwayTeam']}</strong><br>
+                    Date: {match['Date'].strftime('%A, %d %B %Y')} | Kickoff: {match['KickOffTime']}<br>
+                    Venue: {match['Venue']} | Competition: {match['Competition']}
+                </div>
+                """, unsafe_allow_html=True
+            )
