@@ -420,38 +420,79 @@ elif page == "Predictions":
 # ==========================
 # Predictions Page
 # ==========================
+# ==========================
+# Predictions Page
+# ==========================
 elif page == "Predictions":
-    st.title("⚡ MFC Player Predictions: Upcoming Matches")
+    import pickle
+    import os
+    import plotly.express as px
+    import pandas as pd
+    import streamlit as st
+    from models.event_predictor import EventPredictor  # your model script
 
-    from data_loader import load_all_data
-    dfs = load_all_data()
-    players_df = dfs["Players"]
-    events_df = dfs["Match Events"]
+    st.title("🔮 MFC Predictions Dashboard")
+    st.markdown("Forecast key match events and player performance trends using trained models.")
 
-    try:
-        upcoming_df = pd.read_csv("upcoming_matches.csv", parse_dates=["Date"])
-    except FileNotFoundError:
-        st.warning("No upcoming matches found")
-        upcoming_df = pd.DataFrame()
+    # Tabs
+    tab1, tab2 = st.tabs(["📊 Event Predictions", "⚙️ Model Training"])
 
-    numeric_cols = events_df.select_dtypes(include="number").columns.tolist()
-    target_col = st.sidebar.selectbox("🎯 Target Variable", numeric_cols)
-    feature_cols = st.sidebar.multiselect("🧩 Features", [c for c in events_df.columns if c != target_col])
-
-    tab1, tab_team = st.tabs(["Player Predictions", "🏆 Team Predictions"])
-
-    # Tab1: Player Predictions
+    # ======================================================
+    # TAB 1: Event Predictions
+    # ======================================================
     with tab1:
-        st.write("⚡ Predictions per player (existing code here)")
+        st.subheader("🎯 Predict Upcoming Match Events")
 
-    # Tab2: Team Predictions
-    with tab_team:
-        if not upcoming_df.empty:
-            match_id = st.selectbox("Select Upcoming Match", upcoming_df.index, key="team_pred")
-            match_players = players_df  # Could merge historical stats or use averages
-            numeric_cols = events_df.select_dtypes(include="number").columns.tolist()
-            team_pred_summary = match_players[numeric_cols].sum().to_frame().T
-            st.subheader(f"Predicted Team Totals for Match {match_id}")
-            st.dataframe(team_pred_summary)
+        # Load available models dynamically
+        model_folder = "models/trained"
+        available_models = [f.replace("_model.pkl", "") for f in os.listdir(model_folder) if f.endswith(".pkl")]
+
+        if not available_models:
+            st.warning("⚠️ No trained models found. Please train models first in the 'Model Training' tab.")
         else:
-            st.info("No upcoming matches for team prediction")
+            event_type = st.selectbox("Select Event Type to Predict", available_models)
+            input_value = st.number_input("Enter recent event count (e.g. average assists per match):", min_value=0.0)
+
+            if st.button("Predict Event Outcome"):
+                model_path = os.path.join(model_folder, f"{event_type}_model.pkl")
+                with open(model_path, "rb") as f:
+                    model = pickle.load(f)
+
+                prediction = model.predict([[input_value]])[0]
+                st.success(f"✅ Predicted number of {event_type}s in next match: **{prediction:.2f}**")
+
+                # Optional visualization
+                df_pred = pd.DataFrame({
+                    "Event": [event_type],
+                    "Predicted Value": [prediction]
+                })
+                fig = px.bar(df_pred, x="Event", y="Predicted Value", color="Event",
+                             title=f"Predicted {event_type} Count")
+                st.plotly_chart(fig, use_container_width=True)
+
+    # ======================================================
+    # TAB 2: Model Training
+    # ======================================================
+    with tab2:
+        st.subheader("⚙️ Train or Update Models")
+
+        st.markdown("""
+        Use this section to train machine learning models for predicting different event types.
+        Models are saved locally in `models/trained/` and will be used automatically on the Predictions tab.
+        """)
+
+        if st.button("🧠 Train All Models"):
+            with st.spinner("Training models... please wait ⏳"):
+                trainer = EventPredictor()
+                trainer.load_data()
+                trainer.train_all()
+            st.success("🎉 All models trained and saved successfully!")
+
+        # Display currently available models
+        if os.path.exists("models/trained"):
+            trained_models = os.listdir("models/trained")
+            if trained_models:
+                st.info("✅ Trained Models:")
+                st.write([m.replace("_model.pkl", "") for m in trained_models])
+            else:
+                st.warning("No trained models yet.")
