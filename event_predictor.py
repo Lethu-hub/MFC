@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error
 import os
 
 class EventPredictor:
-    def __init__(self, data_path="data/match_events.csv", model_dir="models/trained"):
+    def __init__(self, data_path="match_events.csv", model_dir="models/trained"):
         self.data_path = data_path
         self.model_dir = model_dir
         os.makedirs(model_dir, exist_ok=True)
