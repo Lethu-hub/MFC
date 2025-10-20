@@ -5,6 +5,7 @@ from stats import central_tendency, measures_of_spread, categorical_counts
 from charts import univariate_chart
 from datetime import datetime
 from analytics_dashboard import display_analytics
+import plotly.express as px
 
 # ==========================
 # Page config
