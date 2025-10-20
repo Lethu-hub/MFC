@@ -6,6 +6,7 @@ from charts import univariate_chart
 from datetime import datetime
 from analytics_dashboard import display_analytics
 import plotly.express as px
+from event_predictor import EventPredictor
 
 # ==========================
 # Page config
