@@ -312,9 +312,6 @@ elif page == "Performance":
         st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
         display_analytics()
 
-# ==========================
-# Predictions Page
-# ==========================
 import streamlit as st
 import pandas as pd
 import plotly.express as px
