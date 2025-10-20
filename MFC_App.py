@@ -312,26 +312,94 @@ elif page == "Performance":
         st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
         display_analytics()
 
+# ==========================
+# Predictions Page
+# ==========================
+elif page == "Predictions":
+    st.title("📊 Match Predictions Dashboard")
+    st.markdown("View predictions for upcoming matches based on historical player and team data.")
 
-# -----------------------------
-# Predictions placeholder 
-# -----------------------------
-st.subheader("Predicted Match Stats")
-predicted_events = {
-    "Goals": 2,
-    "Shots On Target": 5,
-    "Assists": 3,
-    "Yellow Cards": 2,
-    "Red Cards": 0
-}
+    import pandas as pd
+    import plotly.express as px
 
-st.table(pd.DataFrame(predicted_events.items(), columns=["Event", "Predicted Count"]))
+    # -----------------------------
+    # Load historical data
+    # -----------------------------
+    try:
+        events_df = pd.read_csv("match_events.csv")
+        players_df = pd.read_csv("players.csv")
+        matches_df = pd.read_csv("matches.csv")
+        upcoming_df = pd.read_csv("upcoming_matches.csv")
+    except FileNotFoundError as e:
+        st.error(f"Required CSV not found: {e.filename}")
+        st.stop()
 
-# Example: Bar chart
-fig = px.bar(
-    pd.DataFrame(predicted_events.items(), columns=["Event", "Count"]),
-    x="Event",
-    y="Count",
-    title=f"Predicted Events for {match_row['HomeTeam']} vs {match_row['AwayTeam']}"
-)
-st.plotly_chart(fig, use_container_width=True)
+    # Ensure upcoming matches dates are parsed correctly
+    upcoming_df['Date'] = pd.to_datetime(upcoming_df['Date'], errors='coerce')
+
+    # -----------------------------
+    # Sidebar filter: select match
+    # -----------------------------
+    st.sidebar.header("Select Upcoming Match")
+    upcoming_df_sorted = upcoming_df.sort_values(by='Date')
+    match_options = [
+        f"{row['HomeTeam']} vs {row['AwayTeam']} on {row['Date'].strftime('%Y-%m-%d')}"
+        for idx, row in upcoming_df_sorted.iterrows()
+    ]
+    selected_match_label = st.sidebar.selectbox("Match", match_options)
+    selected_match_idx = match_options.index(selected_match_label)
+    selected_match = upcoming_df_sorted.iloc[selected_match_idx]
+
+    st.markdown(f"### Predictions for: {selected_match['HomeTeam']} vs {selected_match['AwayTeam']}")
+
+    # -----------------------------
+    # Filter historical events for teams
+    # -----------------------------
+    home_team = selected_match['HomeTeam']
+    away_team = selected_match['AwayTeam']
+
+    # Map team to players (assuming your players have a 'Team' column; else adapt)
+    # For demonstration, we'll assume all players belong to both teams to allow dummy predictions
+    team_players_df = players_df.copy()
+
+    # -----------------------------
+    # Aggregate predictions (dummy logic)
+    # -----------------------------
+    # Count events by type in historical matches
+    event_counts = events_df.groupby('Event_Type').size().reset_index(name='Count')
+    st.markdown("#### Expected Event Counts (based on historical averages)")
+
+    fig_events = px.bar(
+        event_counts,
+        x='Event_Type',
+        y='Count',
+        title="Predicted Events in Match",
+        text='Count',
+        color='Event_Type'
+    )
+    st.plotly_chart(fig_events, use_container_width=True)
+
+    # -----------------------------
+    # Player contributions (dummy)
+    # -----------------------------
+    st.markdown("#### Top Player Contributions (historical stats)")
+    player_event_counts = events_df.groupby('Player_ID').size().reset_index(name='EventCount')
+    player_event_counts = player_event_counts.merge(players_df[['Player_ID', 'Player_Name']], on='Player_ID')
+    player_event_counts = player_event_counts.sort_values('EventCount', ascending=False).head(5)
+
+    fig_players = px.bar(
+        player_event_counts,
+        x='Player_Name',
+        y='EventCount',
+        title="Top Players by Event Count",
+        text='EventCount',
+        color='Player_Name'
+    )
+    st.plotly_chart(fig_players, use_container_width=True)
+
+    # -----------------------------
+    # Notes / Instructions
+    # -----------------------------
+    st.info("🔹 Currently predictions are based on historical averages.\n"
+            "🔹 Once trained ML models are added, this will show predicted events for the match.\n"
+            "🔹 This is designed to be interactive and scalable with more sophisticated prediction logic in the future.")
