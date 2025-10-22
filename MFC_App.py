@@ -351,6 +351,21 @@ elif page == "Predictions":
     ]
 
     # -----------------------------
+    # Chart hover styling
+    # -----------------------------
+    st.markdown("""
+        <style>
+        .chart-container {
+            transition: transform 0.25s ease;
+        }
+        .chart-container:hover {
+            transform: scale(1.04);
+            z-index: 999;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # -----------------------------
     # Display predictions
     # -----------------------------
     st.subheader("🗓️ Upcoming Matches")
@@ -359,14 +374,17 @@ elif page == "Predictions":
         st.info("No upcoming matches available.")
     else:
         for _, match in upcoming_df.iterrows():
+            # Match card
             st.markdown(
                 f"""
-                <div style="border:1px solid #e1e1e1; padding:10px; border-radius:8px; margin-bottom:10px; background-color:#f7f7f7;">
+                <div style="border:1px solid #e1e1e1; padding:10px; border-radius:8px;
+                            margin-bottom:10px; background-color:#f7f7f7;">
                     <strong>{match['HomeTeam']} vs {match['AwayTeam']}</strong><br>
                     Date: {match['Date'].strftime('%A, %d %B %Y')} | Kickoff: {match['KickOffTime']}<br>
                     Venue: {match['Venue']} | Competition: {match['Competition']}
                 </div>
-                """, unsafe_allow_html=True
+                """,
+                unsafe_allow_html=True
             )
 
             # -----------------------------
@@ -376,20 +394,21 @@ elif page == "Predictions":
             predictions = {}
             for event in event_types:
                 try:
-                    pred = predictor.predict(event, last_value=5)  # last_value can be updated dynamically
-                    predictions[event] = max(0, round(pred))  # no negatives
+                    pred = predictor.predict(event, last_value=5)  # You can modify the "5" dynamically
+                    predictions[event] = max(0, round(pred))
                 except FileNotFoundError:
                     predictions[event] = None
 
-            # Convert to DataFrame for plotting
             pred_df = pd.DataFrame({
                 "Event": list(predictions.keys()),
                 "Predicted": list(predictions.values())
             }).dropna()
 
             # -----------------------------
-            # Plot chart
+            # Plot chart (unique key per match)
             # -----------------------------
+            chart_key = f"{match['HomeTeam']}_{match['AwayTeam']}_{match['Date'].strftime('%Y%m%d')}"
+
             fig = px.bar(
                 pred_df,
                 x="Event",
@@ -400,5 +419,10 @@ elif page == "Predictions":
                 color="Predicted",
                 color_continuous_scale="Viridis"
             )
+            fig.update_traces(textposition='outside')
+            fig.update_layout(showlegend=False, margin=dict(l=20, r=20, t=40, b=20))
 
-            st.plotly_chart(fig, use_container_width=True)
+            # Display chart inside styled container
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"pred_chart_{chart_key}")
+            st.markdown('</div>', unsafe_allow_html=True)
