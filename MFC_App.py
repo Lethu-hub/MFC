@@ -318,96 +318,62 @@ elif page == "Performance":
 # Predictions Page
 # ==========================
 elif page == "Predictions":
-    st.title("📊 MFC Next Match Event Predictions")
-    st.markdown("Automatic prediction for the next **MFC** match. Each event is analyzed and visualized separately.")
+    st.title("📊 Automatic Event Predictions")
+    st.markdown(
+        "Predicted counts for each event type based on historical data. No input required."
+    )
 
     # -----------------------------
-    # Load upcoming matches
-    # -----------------------------
-    upcoming_df = pd.read_csv("upcoming_matches.csv")
-    upcoming_df['Date'] = pd.to_datetime(upcoming_df['Date'], errors='coerce')
-    upcoming_df = upcoming_df.sort_values('Date')
-
-    # Filter to MFC matches
-    mfc_upcoming = upcoming_df[
-        (upcoming_df['HomeTeam'] == "MFC") | (upcoming_df['AwayTeam'] == "MFC")
-    ]
-
-    if mfc_upcoming.empty:
-        st.warning("⚠️ No upcoming MFC matches found.")
-        st.stop()
-
-    next_match = mfc_upcoming.iloc[0]
-    match_label = f"{next_match['HomeTeam']} vs {next_match['AwayTeam']} ({next_match['Date'].strftime('%d %B %Y')})"
-
-    st.subheader(f"🎯 Predicted Events for Next Match: {match_label}")
-
-    # -----------------------------
-    # Initialize predictor
+    # Initialize EventPredictor
     # -----------------------------
     predictor = EventPredictor()
     predictor.load_data()
+
+    # Get all event types
     event_types = predictor.events_df['Event_Type'].unique()
+    num_cols = 4  # charts per row
 
-    # -----------------------------
-    # Run and visualize predictions
-    # -----------------------------
-    for event in event_types:
-        try:
-            prediction = predictor.predict(event, last_value=5)
-            prediction = max(0, round(prediction))
+    # Loop through each event
+    for i, event in enumerate(event_types):
+        hist = predictor.events_df[predictor.events_df['Event_Type'] == event]
 
-            # Event header
-            st.markdown(f"### ⚡ {event} Prediction")
+        # Historical counts per season
+        counts = hist.groupby('Season').size().reset_index(name='Count')
 
-            # Data for visualizations
-            event_df = pd.DataFrame({
-                "Metric": ["Predicted Value"],
-                "Value": [prediction]
-            })
+        # Predict next value
+        next_season = str(int(counts['Season'].max()) + 1)
+        pred = predictor.predict(event, last_value=counts['Count'].iloc[-1])
+        pred = max(0, round(pred))
 
-            col1, col2 = st.columns(2)
+        # Append predicted point
+        counts = pd.concat(
+            [counts, pd.DataFrame({"Season": [next_season], "Count": [pred]})],
+            ignore_index=True
+        )
 
-            with col1:
-                # Bar Chart
-                fig_bar = px.bar(
-                    event_df,
-                    x="Metric",
-                    y="Value",
-                    text="Value",
-                    color="Value",
-                    title=f"{event} - Bar Chart",
-                    color_continuous_scale="Viridis"
-                )
-                fig_bar.update_traces(textposition="outside")
-                st.plotly_chart(fig_bar, use_container_width=True, key=f"{event}_bar")
+        # -----------------------------
+        # Choose chart type dynamically for variety
+        # -----------------------------
+        chart_type = ["line", "bar", "scatter", "area"][i % 4]
 
-            with col2:
-                # Line Chart (mini trend)
-                history = predictor.events_df[predictor.events_df["Event_Type"] == event]["Event_Count"].tail(10)
-                hist_df = pd.DataFrame({
-                    "Match_Index": range(len(history)),
-                    "Count": history
-                })
-                fig_line = px.line(
-                    hist_df,
-                    x="Match_Index",
-                    y="Count",
-                    markers=True,
-                    title=f"{event} - Recent Trend"
-                )
-                st.plotly_chart(fig_line, use_container_width=True, key=f"{event}_line")
+        if chart_type == "line":
+            fig = px.line(counts, x='Season', y='Count', text='Count', title=event)
+        elif chart_type == "bar":
+            fig = px.bar(counts, x='Season', y='Count', text='Count', title=event)
+        elif chart_type == "scatter":
+            fig = px.scatter(counts, x='Season', y='Count', text='Count', title=event, size='Count')
+        elif chart_type == "area":
+            fig = px.area(counts, x='Season', y='Count', text='Count', title=event)
 
-            # Histogram below both
-            fig_hist = px.histogram(
-                history,
-                nbins=5,
-                title=f"{event} - Distribution of Past Counts"
-            )
-            st.plotly_chart(fig_hist, use_container_width=True, key=f"{event}_hist")
+        # Color scale for bar/area charts
+        if chart_type in ["bar", "area"]:
+            fig.update_traces(marker_color='Viridis')
 
-            st.markdown("---")
-
-        except FileNotFoundError:
-            st.warning(f"⚠️ Model for `{event}` not found — skipping.")
+        # -----------------------------
+        # Display chart in expandable column
+        # -----------------------------
+        cols = st.columns(num_cols)
+        with cols[i % num_cols]:
+            with st.expander(f"{event} (click to enlarge)"):
+                st.plotly_chart(fig, use_container_width=True)
 
