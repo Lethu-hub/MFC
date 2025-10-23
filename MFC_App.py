@@ -318,8 +318,8 @@ elif page == "Performance":
 # Predictions Page
 # ==========================
 elif page == "Predictions":
-    st.title("📊 MFC Predictions Dashboard")
-    st.markdown("Predicted events for upcoming matches based on historical data.")
+    st.title("📊 MFC Next Match Event Predictions")
+    st.markdown("Automatic prediction for the next **MFC** match. Each event is analyzed and visualized separately.")
 
     # -----------------------------
     # Load upcoming matches
@@ -328,101 +328,86 @@ elif page == "Predictions":
     upcoming_df['Date'] = pd.to_datetime(upcoming_df['Date'], errors='coerce')
     upcoming_df = upcoming_df.sort_values('Date')
 
+    # Filter to MFC matches
+    mfc_upcoming = upcoming_df[
+        (upcoming_df['HomeTeam'] == "MFC") | (upcoming_df['AwayTeam'] == "MFC")
+    ]
+
+    if mfc_upcoming.empty:
+        st.warning("⚠️ No upcoming MFC matches found.")
+        st.stop()
+
+    next_match = mfc_upcoming.iloc[0]
+    match_label = f"{next_match['HomeTeam']} vs {next_match['AwayTeam']} ({next_match['Date'].strftime('%d %B %Y')})"
+
+    st.subheader(f"🎯 Predicted Events for Next Match: {match_label}")
+
     # -----------------------------
-    # Initialize EventPredictor
+    # Initialize predictor
     # -----------------------------
     predictor = EventPredictor()
     predictor.load_data()
+    event_types = predictor.events_df['Event_Type'].unique()
 
     # -----------------------------
-    # Sidebar filters (optional)
+    # Run and visualize predictions
     # -----------------------------
-    st.sidebar.header("Filters")
-    team_filter = st.sidebar.multiselect(
-        "Select Teams",
-        options=pd.unique(upcoming_df[['HomeTeam', 'AwayTeam']].values.ravel()),
-        default=pd.unique(upcoming_df[['HomeTeam', 'AwayTeam']].values.ravel())
-    )
+    for event in event_types:
+        try:
+            prediction = predictor.predict(event, last_value=5)
+            prediction = max(0, round(prediction))
 
-    # Filter upcoming matches
-    upcoming_df = upcoming_df[
-        (upcoming_df['HomeTeam'].isin(team_filter)) |
-        (upcoming_df['AwayTeam'].isin(team_filter))
-    ]
+            # Event header
+            st.markdown(f"### ⚡ {event} Prediction")
 
-    # -----------------------------
-    # Chart hover styling
-    # -----------------------------
-    st.markdown("""
-        <style>
-        .chart-container {
-            transition: transform 0.25s ease;
-        }
-        .chart-container:hover {
-            transform: scale(1.04);
-            z-index: 999;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+            # Data for visualizations
+            event_df = pd.DataFrame({
+                "Metric": ["Predicted Value"],
+                "Value": [prediction]
+            })
 
-    # -----------------------------
-    # Display predictions
-    # -----------------------------
-    st.subheader("🗓️ Upcoming Matches")
+            col1, col2 = st.columns(2)
 
-    if upcoming_df.empty:
-        st.info("No upcoming matches available.")
-    else:
-        for _, match in upcoming_df.iterrows():
-            # Match card
-            st.markdown(
-                f"""
-                <div style="border:1px solid #e1e1e1; padding:10px; border-radius:8px;
-                            margin-bottom:10px; background-color:#f7f7f7;">
-                    <strong>{match['HomeTeam']} vs {match['AwayTeam']}</strong><br>
-                    Date: {match['Date'].strftime('%A, %d %B %Y')} | Kickoff: {match['KickOffTime']}<br>
-                    Venue: {match['Venue']} | Competition: {match['Competition']}
-                </div>
-                """,
-                unsafe_allow_html=True
+            with col1:
+                # Bar Chart
+                fig_bar = px.bar(
+                    event_df,
+                    x="Metric",
+                    y="Value",
+                    text="Value",
+                    color="Value",
+                    title=f"{event} - Bar Chart",
+                    color_continuous_scale="Viridis"
+                )
+                fig_bar.update_traces(textposition="outside")
+                st.plotly_chart(fig_bar, use_container_width=True, key=f"{event}_bar")
+
+            with col2:
+                # Line Chart (mini trend)
+                history = predictor.events_df[predictor.events_df["Event_Type"] == event]["Event_Count"].tail(10)
+                hist_df = pd.DataFrame({
+                    "Match_Index": range(len(history)),
+                    "Count": history
+                })
+                fig_line = px.line(
+                    hist_df,
+                    x="Match_Index",
+                    y="Count",
+                    markers=True,
+                    title=f"{event} - Recent Trend"
+                )
+                st.plotly_chart(fig_line, use_container_width=True, key=f"{event}_line")
+
+            # Histogram below both
+            fig_hist = px.histogram(
+                history,
+                nbins=5,
+                title=f"{event} - Distribution of Past Counts"
             )
+            st.plotly_chart(fig_hist, use_container_width=True, key=f"{event}_hist")
 
-            # -----------------------------
-            # Predict each event
-            # -----------------------------
-            event_types = predictor.events_df['Event_Type'].unique()
-            predictions = {}
-            for event in event_types:
-                try:
-                    pred = predictor.predict(event, last_value=5)  # You can modify the "5" dynamically
-                    predictions[event] = max(0, round(pred))
-                except FileNotFoundError:
-                    predictions[event] = None
+            st.markdown("---")
 
-            pred_df = pd.DataFrame({
-                "Event": list(predictions.keys()),
-                "Predicted": list(predictions.values())
-            }).dropna()
+        except FileNotFoundError:
+            st.warning(f"⚠️ Model for `{event}` not found — skipping.")
 
-            # -----------------------------
-            # Plot chart (unique key per match)
-            # -----------------------------
-            chart_key = f"{match['HomeTeam']}_{match['AwayTeam']}_{match['Date'].strftime('%Y%m%d')}"
-
-            fig = px.bar(
-                pred_df,
-                x="Event",
-                y="Predicted",
-                text="Predicted",
-                title="Predicted Events",
-                height=250,
-                color="Predicted",
-                color_continuous_scale="Viridis"
-            )
-            fig.update_traces(textposition='outside')
-            fig.update_layout(showlegend=False, margin=dict(l=20, r=20, t=40, b=20))
-
-            # Display chart inside styled container
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.plotly_chart(fig, use_container_width=True, key=f"pred_chart_{chart_key}")
-            st.markdown('</div>', unsafe_allow_html=True)
