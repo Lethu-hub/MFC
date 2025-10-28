@@ -320,60 +320,65 @@ elif page == "Performance":
 elif page == "Predictions":
     st.title("📊 Automatic Event Predictions")
     st.markdown(
-        "Predicted counts for each event type based on historical data. No input required."
+        "Predicted counts for each event type based on historical match data."
     )
 
-    # -----------------------------
-    # Initialize EventPredictor
-    # -----------------------------
-    predictor = EventPredictor()
+    # Initialize predictor
+    predictor = EventPredictor(data_path="match_events.csv", model_dir=".")
     predictor.load_data()
 
-    # Get all event types
+    # Get event types
     event_types = predictor.events_df['Event_Type'].unique()
-    num_cols = 4  # charts per row
+    st.markdown(f"Found **{len(event_types)}** event types from match history.")
 
-    # Loop through each event
-    for i, event in enumerate(event_types):
-        hist = predictor.events_df[predictor.events_df['Event_Type'] == event]
+    num_cols = 3  # Charts per row
 
-        # Historical counts per season
-        counts = hist.groupby('Season').size().reset_index(name='Count')
-
-        # Predict next value
-        next_season = str(int(counts['Season'].max()) + 1)
-        pred = predictor.predict(event, last_value=counts['Count'].iloc[-1])
-        pred = max(0, round(pred))
-
-        # Append predicted point
-        counts = pd.concat(
-            [counts, pd.DataFrame({"Season": [next_season], "Count": [pred]})],
-            ignore_index=True
-        )
-
-        # -----------------------------
-        # Choose chart type dynamically for variety
-        # -----------------------------
-        chart_type = ["line", "bar", "scatter", "area"][i % 4]
-
-        if chart_type == "line":
-            fig = px.line(counts, x='Season', y='Count', text='Count', title=event)
-        elif chart_type == "bar":
-            fig = px.bar(counts, x='Season', y='Count', text='Count', title=event)
-        elif chart_type == "scatter":
-            fig = px.scatter(counts, x='Season', y='Count', text='Count', title=event, size='Count')
-        elif chart_type == "area":
-            fig = px.area(counts, x='Season', y='Count', text='Count', title=event)
-
-        # Color scale for bar/area charts
-        if chart_type in ["bar", "area"]:
-            fig.update_traces(marker_color='Viridis')
-
-        # -----------------------------
-        # Display chart in expandable column
-        # -----------------------------
+    for i in range(0, len(event_types), num_cols):
         cols = st.columns(num_cols)
-        with cols[i % num_cols]:
-            with st.expander(f"{event} (click to enlarge)"):
-                st.plotly_chart(fig, use_container_width=True)
+
+        for j, event in enumerate(event_types[i:i + num_cols]):
+            with cols[j]:
+                hist = predictor.events_df[predictor.events_df['Event_Type'] == event]
+
+                # --- Group and predict ---
+                counts = hist.groupby('Season').size().reset_index(name='Count')
+
+                try:
+                    last_value = counts['Count'].iloc[-1]
+                    prediction = predictor.predict(event, last_value)
+                    next_season = str(int(counts['Season'].max()) + 1)
+                    prediction = max(0, round(prediction))
+                except FileNotFoundError:
+                    st.warning(f"No trained model found for **{event}**")
+                    continue
+
+                # --- Append predicted data ---
+                future_df = pd.DataFrame({
+                    "Season": [next_season],
+                    "Count": [prediction]
+                })
+                counts = pd.concat([counts, future_df], ignore_index=True)
+
+                # --- Chart with expander ---
+                with st.expander(f"⚽ {event} — Predicted: {prediction}"):
+                    # Choose a style dynamically for variety
+                    chart_type = ["line", "bar", "area"][i % 3]
+
+                    if chart_type == "line":
+                        fig = px.line(counts, x='Season', y='Count', markers=True, text='Count',
+                                      title=f"{event} — Trend")
+                    elif chart_type == "bar":
+                        fig = px.bar(counts, x='Season', y='Count', text='Count',
+                                     title=f"{event} — Season Comparison")
+                    else:
+                        fig = px.area(counts, x='Season', y='Count', text='Count',
+                                      title=f"{event} — Forecast Growth")
+
+                    fig.update_layout(
+                        xaxis_title="Season",
+                        yaxis_title="Event Count",
+                        height=350,
+                        margin=dict(l=10, r=10, t=40, b=10)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
 
