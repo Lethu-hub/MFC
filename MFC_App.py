@@ -372,3 +372,70 @@ for i, event in enumerate(event_types):
                 title=f"{event} Predictions"
             )
             st.plotly_chart(full_fig, use_container_width=True)
+# ==========================
+# Predictions Page
+# ==========================
+elif page == "Predictions":
+    st.title("📊 Weekly Event Predictions")
+    st.markdown(
+        "Predicted counts for each event type on a weekly basis based on historical match data."
+    )
+
+    # -----------------------------
+    # Initialize EventPredictor
+    # -----------------------------
+    predictor = EventPredictor(model_dir=".")  # current folder with uploaded .pkl files
+    predictor.load_data()
+
+    event_types = predictor.events_df['Event_Type'].unique()
+    num_cols = 3  # mini charts per row
+
+    # -----------------------------
+    # Create weekly prediction plots
+    # -----------------------------
+    cols = st.columns(num_cols)
+    for i, event in enumerate(event_types):
+        # Load model
+        try:
+            last_count = (
+                predictor.events_df[predictor.events_df['Event_Type'] == event]
+                .groupby('Match_Date')
+                .size()
+                .iloc[-1]
+            )
+        except IndexError:
+            last_count = 5  # fallback if no data
+
+        # Predict next 4 weeks
+        future_weeks = list(range(1, 5))
+        predictions = []
+        for week in future_weeks:
+            pred = predictor.predict(event, last_value=last_count)
+            pred = max(0, round(pred))
+            predictions.append(pred)
+            last_count = pred  # update lag for next week
+
+        # Build DataFrame for plotting
+        df_plot = pd.DataFrame({
+            "Week": future_weeks,
+            "Predicted_Count": predictions
+        })
+
+        # Create line chart (like a simple linear equation graph)
+        import plotly.express as px
+        fig = px.line(
+            df_plot,
+            x="Week",
+            y="Predicted_Count",
+            text="Predicted_Count",
+            title=event,
+            markers=True
+        )
+        fig.update_traces(textposition="top center")
+
+        # -----------------------------
+        # Place chart in mini grid with expander
+        # -----------------------------
+        with cols[i % num_cols]:
+            with st.expander(f"{event} — click to expand"):
+                st.plotly_chart(fig, use_container_width=True)
