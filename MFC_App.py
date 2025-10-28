@@ -314,71 +314,61 @@ elif page == "Performance":
         st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
         display_analytics()
 
-# ==========================
-# Predictions Page
-# ==========================
-elif page == "Predictions":
-    st.title("📊 Automatic Event Predictions")
-    st.markdown(
-        "Predicted counts for each event type based on historical match data."
+num_cols = 3
+cols = st.columns(num_cols)
+
+for i, event in enumerate(event_types):
+    # Load model
+    model_file = f"{event.replace(' ', '_')}_weekly_model.pkl"
+    if not os.path.exists(model_file):
+        st.warning(f"No model found for {event}.")
+        continue
+    model = joblib.load(model_file)
+
+    # Prepare historical + predicted data (same as before)
+    df_event = events_df[events_df['Event_Type'] == event].copy()
+    df_hist = (
+        df_event.groupby(['Year', 'Week'])
+        .size()
+        .reset_index(name='Event_Count')
     )
+    df_hist['TimeIndex'] = (df_hist['Year'] - df_hist['Year'].min()) * 52 + df_hist['Week']
 
-    # Initialize predictor
-    predictor = EventPredictor(data_path="match_events.csv", model_dir=".")
-    predictor.load_data()
+    last_time = df_hist['TimeIndex'].max()
+    future_time = [last_time + w for w in range(1, future_weeks + 1)]
+    pred_counts = model.predict(pd.DataFrame({'TimeIndex': future_time}))
+    pred_counts = [max(0, round(x)) for x in pred_counts]
 
-    # Get event types
-    event_types = predictor.events_df['Event_Type'].unique()
-    st.markdown(f"Found **{len(event_types)}** event types from match history.")
+    df_plot = pd.concat([
+        df_hist[['TimeIndex', 'Event_Count']],
+        pd.DataFrame({'TimeIndex': future_time, 'Event_Count': pred_counts})
+    ], ignore_index=True)
+    df_plot['Type'] = ['Historical']*len(df_hist) + ['Predicted']*future_weeks
 
-    num_cols = 3  # Charts per row
+    # -----------------------------
+    # Mini chart
+    # -----------------------------
+    mini_fig = px.line(
+        df_plot,
+        x='TimeIndex',
+        y='Event_Count',
+        color='Type',
+        height=200,  # smaller height for mini graph
+        markers=True
+    )
+    mini_fig.update_layout(margin=dict(l=10, r=10, t=20, b=20), showlegend=False)
 
-    for i in range(0, len(event_types), num_cols):
-        cols = st.columns(num_cols)
-
-        for j, event in enumerate(event_types[i:i + num_cols]):
-            with cols[j]:
-                hist = predictor.events_df[predictor.events_df['Event_Type'] == event]
-
-                # --- Group and predict ---
-                counts = hist.groupby('Season').size().reset_index(name='Count')
-
-                try:
-                    last_value = counts['Count'].iloc[-1]
-                    prediction = predictor.predict(event, last_value)
-                    next_season = str(int(counts['Season'].max()) + 1)
-                    prediction = max(0, round(prediction))
-                except FileNotFoundError:
-                    st.warning(f"No trained model found for **{event}**")
-                    continue
-
-                # --- Append predicted data ---
-                future_df = pd.DataFrame({
-                    "Season": [next_season],
-                    "Count": [prediction]
-                })
-                counts = pd.concat([counts, future_df], ignore_index=True)
-
-                # --- Chart with expander ---
-                with st.expander(f"⚽ {event} — Predicted: {prediction}"):
-                    # Choose a style dynamically for variety
-                    chart_type = ["line", "bar", "area"][i % 3]
-
-                    if chart_type == "line":
-                        fig = px.line(counts, x='Season', y='Count', markers=True, text='Count',
-                                      title=f"{event} — Trend")
-                    elif chart_type == "bar":
-                        fig = px.bar(counts, x='Season', y='Count', text='Count',
-                                     title=f"{event} — Season Comparison")
-                    else:
-                        fig = px.area(counts, x='Season', y='Count', text='Count',
-                                      title=f"{event} — Forecast Growth")
-
-                    fig.update_layout(
-                        xaxis_title="Season",
-                        yaxis_title="Event Count",
-                        height=350,
-                        margin=dict(l=10, r=10, t=40, b=10)
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-
+    col = cols[i % num_cols]
+    with col:
+        st.plotly_chart(mini_fig, use_container_width=True)
+        if st.button(f"Expand {event}", key=f"btn_{i}"):
+            # Full-size chart
+            full_fig = px.line(
+                df_plot,
+                x='TimeIndex',
+                y='Event_Count',
+                color='Type',
+                markers=True,
+                title=f"{event} Predictions"
+            )
+            st.plotly_chart(full_fig, use_container_width=True)
