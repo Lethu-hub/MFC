@@ -314,64 +314,64 @@ elif page == "Performance":
         st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
         display_analytics()
 
-num_cols = 3
-cols = st.columns(num_cols)
-
-for i, event in enumerate(event_types):
-    # Load model
-    model_file = f"{event.replace(' ', '_')}_weekly_model.pkl"
-    if not os.path.exists(model_file):
-        st.warning(f"No model found for {event}.")
-        continue
-    model = joblib.load(model_file)
-
-    # Prepare historical + predicted data (same as before)
-    df_event = events_df[events_df['Event_Type'] == event].copy()
-    df_hist = (
-        df_event.groupby(['Year', 'Week'])
-        .size()
-        .reset_index(name='Event_Count')
-    )
-    df_hist['TimeIndex'] = (df_hist['Year'] - df_hist['Year'].min()) * 52 + df_hist['Week']
-
-    last_time = df_hist['TimeIndex'].max()
-    future_time = [last_time + w for w in range(1, future_weeks + 1)]
-    pred_counts = model.predict(pd.DataFrame({'TimeIndex': future_time}))
-    pred_counts = [max(0, round(x)) for x in pred_counts]
-
-    df_plot = pd.concat([
-        df_hist[['TimeIndex', 'Event_Count']],
-        pd.DataFrame({'TimeIndex': future_time, 'Event_Count': pred_counts})
-    ], ignore_index=True)
-    df_plot['Type'] = ['Historical']*len(df_hist) + ['Predicted']*future_weeks
-
-    # -----------------------------
-    # Mini chart
-    # -----------------------------
-    mini_fig = px.line(
-        df_plot,
-        x='TimeIndex',
-        y='Event_Count',
-        color='Type',
-        height=200,  # smaller height for mini graph
-        markers=True
-    )
-    mini_fig.update_layout(margin=dict(l=10, r=10, t=20, b=20), showlegend=False)
-
-    col = cols[i % num_cols]
-    with col:
-        st.plotly_chart(mini_fig, use_container_width=True)
-        if st.button(f"Expand {event}", key=f"btn_{i}"):
-            # Full-size chart
-            full_fig = px.line(
+            num_cols = 3
+            cols = st.columns(num_cols)
+    
+                for i, event in enumerate(event_types):
+            # Load model
+            model_file = f"{event.replace(' ', '_')}_weekly_model.pkl"
+            if not os.path.exists(model_file):
+                st.warning(f"No model found for {event}.")
+                continue
+            model = joblib.load(model_file)
+        
+            # Prepare historical + predicted data (same as before)
+            df_event = events_df[events_df['Event_Type'] == event].copy()
+            df_hist = (
+                df_event.groupby(['Year', 'Week'])
+                .size()
+                .reset_index(name='Event_Count')
+            )
+            df_hist['TimeIndex'] = (df_hist['Year'] - df_hist['Year'].min()) * 52 + df_hist['Week']
+        
+            last_time = df_hist['TimeIndex'].max()
+            future_time = [last_time + w for w in range(1, future_weeks + 1)]
+            pred_counts = model.predict(pd.DataFrame({'TimeIndex': future_time}))
+            pred_counts = [max(0, round(x)) for x in pred_counts]
+        
+            df_plot = pd.concat([
+                df_hist[['TimeIndex', 'Event_Count']],
+                pd.DataFrame({'TimeIndex': future_time, 'Event_Count': pred_counts})
+            ], ignore_index=True)
+            df_plot['Type'] = ['Historical']*len(df_hist) + ['Predicted']*future_weeks
+        
+            # -----------------------------
+            # Mini chart
+            # -----------------------------
+            mini_fig = px.line(
                 df_plot,
                 x='TimeIndex',
                 y='Event_Count',
                 color='Type',
-                markers=True,
-                title=f"{event} Predictions"
+                height=200,  # smaller height for mini graph
+                markers=True
             )
-            st.plotly_chart(full_fig, use_container_width=True)
+            mini_fig.update_layout(margin=dict(l=10, r=10, t=20, b=20), showlegend=False)
+        
+            col = cols[i % num_cols]
+            with col:
+                st.plotly_chart(mini_fig, use_container_width=True)
+                if st.button(f"Expand {event}", key=f"btn_{i}"):
+                    # Full-size chart
+                    full_fig = px.line(
+                        df_plot,
+                        x='TimeIndex',
+                        y='Event_Count',
+                        color='Type',
+                        markers=True,
+                        title=f"{event} Predictions"
+                    )
+                    st.plotly_chart(full_fig, use_container_width=True)
 # ==========================
 # Predictions Page
 # ==========================
@@ -381,39 +381,32 @@ elif page == "Predictions":
         "Predicted counts for each event type on a weekly basis based on historical match data."
     )
 
-    # -----------------------------
-    # Initialize EventPredictor
-    # -----------------------------
-    predictor = EventPredictor(model_dir=".")  # current folder with uploaded .pkl files
-    predictor.load_data()
-
-    event_types = predictor.events_df['Event_Type'].unique()
-    num_cols = 3  # mini charts per row
-
-    # -----------------------------
-    # Create weekly prediction plots
-    # -----------------------------
+    # Use already loaded events_df from your main app
+    event_types = events_df['Event_Type'].unique()
+    num_cols = 3
     cols = st.columns(num_cols)
-    for i, event in enumerate(event_types):
-        # Load model
-        try:
-            last_count = (
-                predictor.events_df[predictor.events_df['Event_Type'] == event]
-                .groupby('Match_Date')
-                .size()
-                .iloc[-1]
-            )
-        except IndexError:
-            last_count = 5  # fallback if no data
+    future_weeks = list(range(1, 5))  # predict next 4 weeks
 
-        # Predict next 4 weeks
-        future_weeks = list(range(1, 5))
+    for i, event in enumerate(event_types):
+        # Load the model directly
+        model_file = f"{event.replace(' ', '_')}_weekly_model.pkl"
+        if not os.path.exists(model_file):
+            st.warning(f"No model found for {event}. Skipping...")
+            continue
+        model = joblib.load(model_file)
+
+        # Prepare last known count for lag
+        df_event = events_df[events_df['Event_Type'] == event]
+        last_count = df_event.groupby('Match_Date').size().iloc[-1] if not df_event.empty else 5
+
+        # Generate weekly predictions
         predictions = []
+        lag_value = last_count
         for week in future_weeks:
-            pred = predictor.predict(event, last_value=last_count)
+            pred = model.predict(pd.DataFrame({'Lag': [lag_value]}))[0]
             pred = max(0, round(pred))
             predictions.append(pred)
-            last_count = pred  # update lag for next week
+            lag_value = pred
 
         # Build DataFrame for plotting
         df_plot = pd.DataFrame({
@@ -421,21 +414,14 @@ elif page == "Predictions":
             "Predicted_Count": predictions
         })
 
-        # Create line chart (like a simple linear equation graph)
+        # Create mini line chart
         import plotly.express as px
-        fig = px.line(
-            df_plot,
-            x="Week",
-            y="Predicted_Count",
-            text="Predicted_Count",
-            title=event,
-            markers=True
-        )
+        fig = px.line(df_plot, x="Week", y="Predicted_Count", text="Predicted_Count",
+                      title=event, markers=True)
         fig.update_traces(textposition="top center")
 
-        # -----------------------------
-        # Place chart in mini grid with expander
-        # -----------------------------
-        with cols[i % num_cols]:
+        # Mini chart with expander
+        col = cols[i % num_cols]
+        with col:
             with st.expander(f"{event} — click to expand"):
                 st.plotly_chart(fig, use_container_width=True)
