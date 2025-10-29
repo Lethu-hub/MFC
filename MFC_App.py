@@ -314,10 +314,10 @@ elif page == "Performance":
         st.markdown("These visuals summarize deeper insights like player age impact, top performers, and event patterns across seasons.")
         display_analytics()
 
-            num_cols = 3
-            cols = st.columns(num_cols)
+        num_cols = 3
+        cols = st.columns(num_cols)
     
-                for i, event in enumerate(event_types):
+        for i, event in enumerate(event_types):
             # Load model
             model_file = f"{event.replace(' ', '_')}_weekly_model.pkl"
             if not os.path.exists(model_file):
