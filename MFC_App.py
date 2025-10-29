@@ -379,26 +379,37 @@ elif page == "📊 Predictions":
     st.title("📊 Automatic Event Predictions")
     st.markdown("Each chart shows predicted event counts for upcoming matches based on historical data.")
 
-    # Identify available models
+    # --- Find all available .pkl models in current folder ---
     model_files = [f for f in os.listdir(".") if f.endswith("_model.pkl")]
+
     if not model_files:
         st.warning("⚠️ No trained models found in the current folder.")
         st.stop()
 
-    event_types = [os.path.splitext(f)[0].replace("_model", "").replace("_", " ") for f in model_files]
+    # --- Derive event names cleanly ---
+    event_types = [
+        os.path.splitext(f)[0].replace("_model", "").replace("_", " ")
+        for f in model_files
+    ]
 
     num_cols = 3
     cols = st.columns(num_cols)
 
     for i, event in enumerate(event_types):
         model_file = f"{event.replace(' ', '_')}_model.pkl"
+
+        # --- Load model safely ---
         try:
             model = joblib.load(model_file)
-        except Exception:
+        except Exception as e:
+            st.error(f"❌ Could not load model for {event}: {e}")
             continue
 
-        # Prepare data for plotting
+        # --- Prepare event data ---
         event_df = match_data[match_data["Event_Type"] == event].copy()
+        if event_df.empty:
+            continue
+
         event_df = (
             event_df.groupby("Match_Date")
             .size()
@@ -409,14 +420,14 @@ elif page == "📊 Predictions":
         if len(event_df) < 2:
             continue
 
-        # Predict next event value
+        # --- Predict next event value ---
         last_value = event_df["Event_Count"].iloc[-1]
         try:
             prediction = model.predict([[last_value]])[0]
         except Exception:
             prediction = last_value
 
-        # Build chart
+        # --- Build chart ---
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=event_df["Match_Date"],
@@ -443,7 +454,8 @@ elif page == "📊 Predictions":
             showlegend=False
         )
 
-        # Display mini chart expandable on click
+        # --- Display mini chart ---
         with cols[i % num_cols]:
             with st.expander(f"📊 {event}", expanded=False):
                 st.plotly_chart(fig, use_container_width=True)
+
