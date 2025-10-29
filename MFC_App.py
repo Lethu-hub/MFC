@@ -372,73 +372,64 @@ elif page == "Performance":
                         title=f"{event} Predictions"
                     )
                     st.plotly_chart(full_fig, use_container_width=True)
-# --- PREDICTIONS PAGE ---
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-from event_predictor import EventPredictor
+                    
+# ==========================
+# Predictions Page
+# ==========================
+elif page == "Predictions":
+    st.title("📊 Weekly Event Predictions")
+    st.markdown(
+        "Predicted counts for each event type on a weekly basis based on historical match data."
+    )
 
-st.title("📈 Event Predictions")
-st.markdown("Predict future weekly event trends based on your trained models.")
+    import plotly.express as px
+    from event_predictor import EventPredictor
 
-# Initialize predictor (models are in same directory)
-predictor = EventPredictor(model_dir=".")
-event_types = predictor.list_models()
+    # Initialize the predictor
+    predictor = EventPredictor(model_dir=".")
+    model_events = predictor.list_models()  # auto-list all available models
 
-if not event_types:
-    st.warning("⚠️ No model files (.pkl) found in the directory. Upload them or train models first.")
-else:
-    # Allow user to adjust last known event value
-    st.sidebar.header("Prediction Controls")
-    last_value = st.sidebar.slider("Last Recorded Event Count", 0, 50, 5)
+    if not model_events:
+        st.warning("⚠️ No trained models found in the current folder.")
+        st.stop()
 
-    # Generate predictions
-    results_df = predictor.predict_all(last_value=last_value)
+    st.write(f"Found models for: {', '.join(model_events)}")
 
-    # Display grid of expandable mini charts (3 per row)
+    # Layout
     num_cols = 3
-    for i in range(0, len(event_types), num_cols):
-        cols = st.columns(num_cols)
+    cols = st.columns(num_cols)
+    future_weeks = list(range(1, 5))  # predict next 4 weeks
 
-        for j, event in enumerate(event_types[i:i+num_cols]):
-            col = cols[j]
-            event_row = results_df[results_df["Event_Type"] == event]
-            if event_row.empty:
-                col.warning(f"No prediction data for {event}")
-                continue
+    # Loop through each event and create mini charts
+    for i, event in enumerate(model_events):
+        # Determine last known value
+        try:
+            last_value = predictor.events_df[
+                predictor.events_df['Event_Type'] == event
+            ].shape[0]  # fallback to total counts if you don't have per-week
+        except:
+            last_value = 5
 
-            predicted_value = event_row["Predicted_Value"].values[0]
+        # Generate predictions
+        predictions = []
+        lag_value = last_value
+        for week in future_weeks:
+            pred = predictor.predict(event, last_value=lag_value)
+            pred = max(0, round(pred))
+            predictions.append(pred)
+            lag_value = pred
 
-            # Mini summary box
-            with col.container(border=True):
-                st.subheader(event)
-                st.metric("Predicted Count", f"{predicted_value:.2f}", delta=f"{predicted_value - last_value:.1f}")
+        # Build dataframe for plotting
+        df_plot = pd.DataFrame({
+            "Week": future_weeks,
+            "Predicted_Count": predictions
+        })
 
-                # Mini preview chart (collapsed look)
-                fig, ax = plt.subplots(figsize=(3, 1.5))
-                ax.plot([last_value, predicted_value], marker="o")
-                ax.set_xticks([0, 1])
-                ax.set_xticklabels(["Last", "Predicted"])
-                ax.set_title(event, fontsize=9)
-                ax.grid(True, linestyle="--", alpha=0.4)
-                col.pyplot(fig)
-
-                # Expandable full growth view
-                with st.expander(f"📊 View {event} Growth Curve"):
-                    future_values = [last_value]
-                    for _ in range(6):  # Predict 6 future weeks
-                        next_pred = predictor.predict(event, future_values[-1])
-                        future_values.append(next_pred)
-
-                    future_df = pd.DataFrame({
-                        "Week": range(len(future_values)),
-                        "Predicted Count": future_values
-                    })
-
-                    fig2, ax2 = plt.subplots(figsize=(6, 3))
-                    ax2.plot(future_df["Week"], future_df["Predicted Count"], marker="o")
-                    ax2.set_xlabel("Weeks Ahead")
-                    ax2.set_ylabel("Predicted Event Count")
-                    ax2.set_title(f"{event} — 6-Week Growth Forecast")
-                    ax2.grid(True)
-                    st.pyplot(fig2)
+        # Create mini chart in column
+        col = cols[i % num_cols]
+        with col:
+            with st.expander(f"{event} — click to expand"):
+                fig = px.line(df_plot, x="Week", y="Predicted_Count",
+                              text="Predicted_Count", title=event, markers=True)
+                fig.update_traces(textposition="top center")
+                st.plotly_chart(fig, use_container_width=True)
