@@ -373,55 +373,77 @@ elif page == "Performance":
                     )
                     st.plotly_chart(full_fig, use_container_width=True)
 # ==========================
-# Predictions Page
+# PREDICTIONS PAGE
 # ==========================
-elif page == "Predictions":
-    st.title("📊 Weekly Event Predictions")
-    st.markdown(
-        "Predicted counts for each event type on a weekly basis based on historical match data."
-    )
+elif page == "📊 Predictions":
+    st.title("📊 Automatic Event Predictions")
+    st.markdown("Each chart shows predicted event counts for upcoming matches based on historical data.")
 
-    # Use already loaded events_df from your main app
-    event_types = events_df['Event_Type'].unique()
+    # Identify available models
+    model_files = [f for f in os.listdir(".") if f.endswith("_model.pkl")]
+    if not model_files:
+        st.warning("⚠️ No trained models found in the current folder.")
+        st.stop()
+
+    event_types = [os.path.splitext(f)[0].replace("_model", "").replace("_", " ") for f in model_files]
+
     num_cols = 3
     cols = st.columns(num_cols)
-    future_weeks = list(range(1, 5))  # predict next 4 weeks
 
     for i, event in enumerate(event_types):
-        # Load the model directly
-        model_file = f"{event.replace(' ', '_')}_weekly_model.pkl"
-        if not os.path.exists(model_file):
-            st.warning(f"No model found for {event}. Skipping...")
+        model_file = f"{event.replace(' ', '_')}_model.pkl"
+        try:
+            model = joblib.load(model_file)
+        except Exception:
             continue
-        model = joblib.load(model_file)
 
-        # Prepare last known count for lag
-        df_event = events_df[events_df['Event_Type'] == event]
-        last_count = df_event.groupby('Match_Date').size().iloc[-1] if not df_event.empty else 5
+        # Prepare data for plotting
+        event_df = match_data[match_data["Event_Type"] == event].copy()
+        event_df = (
+            event_df.groupby("Match_Date")
+            .size()
+            .reset_index(name="Event_Count")
+            .sort_values("Match_Date")
+        )
 
-        # Generate weekly predictions
-        predictions = []
-        lag_value = last_count
-        for week in future_weeks:
-            pred = model.predict(pd.DataFrame({'Lag': [lag_value]}))[0]
-            pred = max(0, round(pred))
-            predictions.append(pred)
-            lag_value = pred
+        if len(event_df) < 2:
+            continue
 
-        # Build DataFrame for plotting
-        df_plot = pd.DataFrame({
-            "Week": future_weeks,
-            "Predicted_Count": predictions
-        })
+        # Predict next event value
+        last_value = event_df["Event_Count"].iloc[-1]
+        try:
+            prediction = model.predict([[last_value]])[0]
+        except Exception:
+            prediction = last_value
 
-        # Create mini line chart
-        import plotly.express as px
-        fig = px.line(df_plot, x="Week", y="Predicted_Count", text="Predicted_Count",
-                      title=event, markers=True)
-        fig.update_traces(textposition="top center")
+        # Build chart
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=event_df["Match_Date"],
+            y=event_df["Event_Count"],
+            mode="lines+markers",
+            name="Actual",
+            line=dict(color="royalblue")
+        ))
+        fig.add_trace(go.Scatter(
+            x=[event_df["Match_Date"].iloc[-1] + pd.Timedelta(days=7)],
+            y=[prediction],
+            mode="markers+text",
+            name="Prediction",
+            text=[f"{prediction:.1f}"],
+            textposition="top center",
+            marker=dict(color="orange", size=10)
+        ))
+        fig.update_layout(
+            title=f"{event} Prediction Trend",
+            xaxis_title="Match Date",
+            yaxis_title="Event Count",
+            template="plotly_white",
+            hovermode="x unified",
+            showlegend=False
+        )
 
-        # Mini chart with expander
-        col = cols[i % num_cols]
-        with col:
-            with st.expander(f"{event} — click to expand"):
+        # Display mini chart expandable on click
+        with cols[i % num_cols]:
+            with st.expander(f"📊 {event}", expanded=False):
                 st.plotly_chart(fig, use_container_width=True)
