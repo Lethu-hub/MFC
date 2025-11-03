@@ -434,6 +434,11 @@ elif page == "Predictions":
                               text="Predicted_Count", title=event, markers=True)
                 fig.update_traces(textposition="top center")
                 st.plotly_chart(fig, use_container_width=True)
+
+import streamlit as st
+from supabase import create_client, Client
+import streamlit_authenticator as stauth
+
 # -----------------------------
 # Supabase client setup
 # -----------------------------
@@ -509,3 +514,4 @@ elif authentication_status == False:
     st.error("Username/password is incorrect")
 else:
     st.info("Please log in with admin credentials")
+
