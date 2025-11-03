@@ -7,3 +7,4 @@ polars
 scipy
 scikit-learn
 streamlit-authenticator
+supabase
