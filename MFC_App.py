@@ -433,3 +433,46 @@ elif page == "Predictions":
                               text="Predicted_Count", title=event, markers=True)
                 fig.update_traces(textposition="top center")
                 st.plotly_chart(fig, use_container_width=True)
+# ==========================
+# Admin Page
+# ==========================
+elif page == "Admin":
+    st.title("🔧 Admin Panel")
+    st.markdown("Manage data, upload new datasets, and perform administrative tasks.")
+
+    # Simple authentication (optional)
+    admin_password = st.text_input("Enter admin password:", type="password")
+    if admin_password != "YourSecretPassword":
+        st.warning("Incorrect password. Access denied.")
+        st.stop()
+
+    # Example 1: Upload new CSV files
+    st.subheader("Upload Data")
+    uploaded_file = st.file_uploader("Upload CSV for Matches, Players, or Events", type="csv")
+    if uploaded_file:
+        try:
+            df_uploaded = pd.read_csv(uploaded_file)
+            st.success(f"Uploaded {uploaded_file.name} successfully!")
+            st.dataframe(df_uploaded.head())
+            # Optional: Save file to disk
+            df_uploaded.to_csv(uploaded_file.name, index=False)
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
+
+    # Example 2: Delete outdated files
+    import os
+    st.subheader("Manage Files")
+    files_in_dir = [f for f in os.listdir() if f.endswith(".csv")]
+    file_to_delete = st.selectbox("Select file to delete", [""] + files_in_dir)
+    if st.button("Delete File") and file_to_delete:
+        try:
+            os.remove(file_to_delete)
+            st.success(f"{file_to_delete} deleted!")
+        except Exception as e:
+            st.error(f"Could not delete file: {e}")
+
+    # Example 3: View system info
+    st.subheader("System Info")
+    import platform
+    st.text(f"Python version: {platform.python_version()}")
+    st.text(f"OS: {platform.system()} {platform.release()}")
