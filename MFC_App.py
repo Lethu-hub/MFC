@@ -434,46 +434,78 @@ elif page == "Predictions":
                               text="Predicted_Count", title=event, markers=True)
                 fig.update_traces(textposition="top center")
                 st.plotly_chart(fig, use_container_width=True)
-# ==========================
-# Admin Page
-# ==========================
-elif page == "Admin":
-    st.title("🔧 Admin Panel")
-    st.markdown("Manage data, upload new datasets, and perform administrative tasks.")
+# -----------------------------
+# Supabase client setup
+# -----------------------------
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
-    # Simple authentication (optional)
-    admin_password = st.text_input("Enter admin password:", type="password")
-    if admin_password != "YourSecretPassword":
-        st.warning("Incorrect password. Access denied.")
-        st.stop()
+# -----------------------------
+# Default admin credentials
+# -----------------------------
+default_username = "admin"
+default_password = "MFCAdmin123"
 
-    # Example 1: Upload new CSV files
-    st.subheader("Upload Data")
-    uploaded_file = st.file_uploader("Upload CSV for Matches, Players, or Events", type="csv")
-    if uploaded_file:
-        try:
-            df_uploaded = pd.read_csv(uploaded_file)
-            st.success(f"Uploaded {uploaded_file.name} successfully!")
-            st.dataframe(df_uploaded.head())
-            # Optional: Save file to disk
-            df_uploaded.to_csv(uploaded_file.name, index=False)
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
+hashed_password = stauth.Hasher([default_password]).generate()[0]
 
-    # Example 2: Delete outdated files
-    import os
-    st.subheader("Manage Files")
-    files_in_dir = [f for f in os.listdir() if f.endswith(".csv")]
-    file_to_delete = st.selectbox("Select file to delete", [""] + files_in_dir)
-    if st.button("Delete File") and file_to_delete:
-        try:
-            os.remove(file_to_delete)
-            st.success(f"{file_to_delete} deleted!")
-        except Exception as e:
-            st.error(f"Could not delete file: {e}")
+users = {
+    default_username: {
+        "name": "MFC Admin",
+        "password": hashed_password
+    }
+}
 
-    # Example 3: View system info
-    st.subheader("System Info")
-    import platform
-    st.text(f"Python version: {platform.python_version()}")
-    st.text(f"OS: {platform.system()} {platform.release()}")
+authenticator = stauth.Authenticate(
+    users,
+    "mfc_cookie",
+    "mfc_key",
+    cookie_expiry_days=1
+)
+
+# -----------------------------
+# Admin login
+# -----------------------------
+name, authentication_status, username = authenticator.login("Admin Login", "sidebar")
+
+if authentication_status:
+    st.success(f"Welcome {name}")
+    
+    # -----------------------------
+    # Admin Page content
+    # -----------------------------
+    st.title("🛠️ MFC Admin Panel")
+
+    tab = st.radio("Select action", ["Add Player", "Add Match", "Add Event"])
+
+    if tab == "Add Player":
+        st.subheader("Add a new player")
+        player_name = st.text_input("Full Name")
+        first_name = st.text_input("First Name")
+        surname = st.text_input("Surname")
+        dob = st.date_input("Date of Birth")
+        height = st.number_input("Height (cm)", min_value=100, max_value=250)
+        weight = st.number_input("Weight (kg)", min_value=40, max_value=150)
+        position = st.text_input("Position")
+        nationality = st.text_input("Nationality")
+        jersey_number = st.number_input("Jersey Number", min_value=1, max_value=99)
+
+        if st.button("Add Player"):
+            data = {
+                "player_name": player_name,
+                "first_name": first_name,
+                "surname": surname,
+                "dob": str(dob),
+                "height_cm": height,
+                "weight_kg": weight,
+                "position": position,
+                "nationality": nationality,
+                "jersey_number": jersey_number
+            }
+            supabase.table("players").insert(data).execute()
+            st.success(f"Player {player_name} added successfully!")
+
+elif authentication_status == False:
+    st.error("Username/password is incorrect")
+else:
+    st.info("Please log in with admin credentials")
