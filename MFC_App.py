@@ -442,7 +442,7 @@ from supabase import create_client, Client
 import streamlit_authenticator as stauth
 
 # -----------------------------
-# Supabase client setup
+# Supabase setup
 # -----------------------------
 SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
 SUPABASE_KEY = "YOUR_SUPABASE_KEY"
@@ -451,35 +451,29 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -----------------------------
 # Default admin credentials
 # -----------------------------
-
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# Hash the password
-hashed_passwords = stauth.Hasher.hash_list([default_password])
-# hashed_passwords is a list; use first element
-users = {
-    default_username: {
-        "name": "MFC Admin",
-        "password": hashed_passwords[0]
+# Hash the password using the correct method
+hashed_password = stauth.Hasher.hash_list([default_password])[0]
+
+# Build credentials dict in new format
+credentials = {
+    "usernames": {
+        default_username: {
+            "name": "MFC Admin",
+            "password": hashed_password
+        }
     }
 }
 
-authenticator = stauth.Authenticate(
-    users,
-    "mfc_cookie",
-    "mfc_key",
-    cookie_expiry_days=1
-)
-
-name, authentication_status, username = authenticator.login("Admin Login", "sidebar")
 # -----------------------------
 # Authenticator
 # -----------------------------
 authenticator = stauth.Authenticate(
-    users,
-    "mfc_cookie",   # cookie name
-    "mfc_key",      # key for signing cookie
+    credentials,
+    cookie_name="mfc_cookie",
+    key="mfc_key",
     cookie_expiry_days=1
 )
 
