@@ -455,8 +455,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# ✅ Correct password hashing for 0.4.x
-hashed_password = stauth.Hasher().generate([default_password])[0]
+# ✅ Correct password hashing for 0.4.x+
+hashed_password = stauth.Hasher().hash([default_password])[0]
 
 credentials = {
     "usernames": {
@@ -467,7 +467,9 @@ credentials = {
     }
 }
 
-# ✅ Initialize authenticator (same syntax)
+# -----------------------------
+# Initialize authenticator
+# -----------------------------
 authenticator = stauth.Authenticate(
     credentials,
     "admin_cookie",
@@ -480,18 +482,13 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 name, authentication_status, username = authenticator.login(
     "Admin Login",
-    location="sidebar"  # ✅ required in 0.4.x
+    location="sidebar"
 )
 
-# -----------------------------
-# Handle login status
-# -----------------------------
 if authentication_status:
     st.success(f"Welcome {name}")
     st.title("🛠️ MFC Admin Panel")
-
 elif authentication_status is False:
     st.error("Username/password is incorrect")
-
 else:
     st.info("Please log in with admin credentials")
