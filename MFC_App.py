@@ -437,7 +437,6 @@ elif page == "Predictions":
 # -----------------------------
 # Admin Page
 # -----------------------------
-# Streamlit + Supabase + Admin login
 import streamlit as st
 from supabase import create_client, Client
 import streamlit_authenticator as stauth
@@ -455,9 +454,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# Hash password
-hasher = stauth.Hasher()
-hashed_passwords = hasher.generate([default_password])
+# -----------------------------
+# Hash the password (new API)
+# -----------------------------
+hashed_passwords = stauth.hasher([default_password]).generate()
 
 users = {
     default_username: {
@@ -471,8 +471,8 @@ users = {
 # -----------------------------
 authenticator = stauth.Authenticate(
     users,
-    "mfc_cookie",
-    "mfc_key",
+    "mfc_cookie",   # cookie name
+    "mfc_key",      # key for signing cookie
     cookie_expiry_days=1
 )
 
@@ -481,14 +481,12 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 name, authentication_status, username = authenticator.login("Admin Login", "sidebar")
 
-
 if authentication_status:
     st.success(f"Welcome {name}")
     
     st.title("🛠️ MFC Admin Panel")
-    
     tab = st.radio("Select action", ["Add Player", "Add Match", "Add Event"])
-    
+
     # -----------------------------
     # Add Player
     # -----------------------------
