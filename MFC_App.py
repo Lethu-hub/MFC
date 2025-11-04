@@ -456,7 +456,7 @@ default_username = "admin"
 default_password = "MFCAdmin123"
 
 # ✅ Correct password hashing for 0.4.x
-hashed_password = stauth.Hasher([default_password]).generate()[0]
+hashed_password = stauth.Hasher().generate([default_password])[0]
 
 credentials = {
     "usernames": {
