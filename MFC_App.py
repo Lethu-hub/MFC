@@ -455,10 +455,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# Hash the password using the latest API
-hashed_password = stauth.Hasher.hash_list([default_password])[0]
+# Hash the password
+hashed_password = stauth.Hasher([default_password]).generate()[0]
 
-# Build credentials dict for latest streamlit-authenticator
+# Build credentials dict
 credentials = {
     "usernames": {
         default_username: {
@@ -483,10 +483,11 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 login_result = authenticator.login(location="sidebar")
 
+# -----------------------------
+# Handle login result safely
+# -----------------------------
 if login_result is not None:
-    name = login_result["name"]
-    authentication_status = login_result["authentication_status"]
-    username = login_result["username"]
+    name, authentication_status, username = login_result
 else:
     authentication_status = None
 
@@ -499,9 +500,6 @@ if authentication_status:
 
     tab = st.radio("Select action", ["Add Player", "Add Match", "Add Event"])
 
-    # -----------------------------
-    # Add Player
-    # -----------------------------
     if tab == "Add Player":
         st.subheader("Add a New Player")
         player_name = st.text_input("Full Name")
@@ -532,9 +530,6 @@ if authentication_status:
             except Exception as e:
                 st.error(f"Failed to add player: {e}")
 
-    # -----------------------------
-    # Add Match
-    # -----------------------------
     elif tab == "Add Match":
         st.subheader("Add a New Match")
         home_team = st.text_input("Home Team")
@@ -555,9 +550,6 @@ if authentication_status:
             except Exception as e:
                 st.error(f"Failed to add match: {e}")
 
-    # -----------------------------
-    # Add Event
-    # -----------------------------
     elif tab == "Add Event":
         st.subheader("Add a New Event")
         match_id = st.number_input("Match ID", min_value=1)
@@ -578,14 +570,7 @@ if authentication_status:
             except Exception as e:
                 st.error(f"Failed to add event: {e}")
 
-# -----------------------------
-# Authentication failed
-# -----------------------------
 elif authentication_status is False:
     st.error("Username/password is incorrect")
-
-# -----------------------------
-# No login yet
-# -----------------------------
 else:
     st.info("Please log in with admin credentials")
