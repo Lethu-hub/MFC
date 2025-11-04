@@ -435,9 +435,7 @@ elif page == "Predictions":
                 st.plotly_chart(fig, use_container_width=True)
 
 
-# ==============================
-# Admin Page
-# ==============================
+
 # ==============================
 # MFC Admin Panel - Streamlit
 # ==============================
@@ -459,7 +457,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# ✅ Password hashing for streamlit-authenticator >=0.4.2
 hashed_password = stauth.Hasher().hash(default_password)
 
 credentials = {
@@ -482,26 +479,32 @@ authenticator = stauth.Authenticate(
 )
 
 # -----------------------------
-# Display login widget
+# Show login widget in sidebar
 # -----------------------------
 authenticator.login(location="sidebar")
 
 # -----------------------------
-# Check authentication status
+# Logout button
 # -----------------------------
-if authenticator.authenticated:
-    st.success(f"Welcome {credentials['usernames'][default_username]['name']}")
+if st.session_state.get("authentication_status"):
+    if st.sidebar.button("Logout"):
+        authenticator.logout("sidebar")
+        st.experimental_rerun()  # refresh app after logout
+
+# -----------------------------
+# Check login by session state
+# -----------------------------
+if st.session_state.get("authentication_status"):
+    st.success(f"Welcome {st.session_state['name']}")
     st.title("🛠️ MFC Admin Panel")
-    
-    # Example admin actions
     st.write("Here you can manage your app, view reports, and perform admin tasks.")
     
-    # Example: list Supabase tables
-    # tables = supabase.table("your_table_name").select("*").execute()
-    # st.write(tables.data)
-    
-elif authenticator.failed:
+    # Example: fetch Supabase table (replace 'your_table_name')
+    # data = supabase.table("your_table_name").select("*").execute()
+    # st.write(data.data)
+
+elif st.session_state.get("authentication_status") is False:
     st.error("Username/password is incorrect")
+
 else:
     st.info("Please log in with admin credentials")
-
