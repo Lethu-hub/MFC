@@ -484,10 +484,9 @@ authenticator = stauth.Authenticate(
 # Admin login
 # -----------------------------
 name, authentication_status, username = authenticator.login(
-    location="sidebar",  # must be 'main' or 'sidebar'
-    label="Admin Login"  # the text displayed on the login form
+    "Admin Login",
+    location="sidebar"
 )
-
 # -----------------------------
 # Handle login status
 # -----------------------------
