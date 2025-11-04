@@ -458,7 +458,7 @@ default_password = "MFCAdmin123"
 # Hash the password using the latest API
 hashed_password = stauth.Hasher.hash_list([default_password])[0]
 
-# Build credentials dict for the latest streamlit-authenticator
+# Build credentials dict for latest streamlit-authenticator
 credentials = {
     "usernames": {
         default_username: {
@@ -472,7 +472,7 @@ credentials = {
 # Initialize Authenticator
 # -----------------------------
 authenticator = stauth.Authenticate(
-    credentials,
+    credentials=credentials,
     cookie_name="mfc_cookie",
     key="mfc_key",
     cookie_expiry_days=1
@@ -481,10 +481,17 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 # Admin login
 # -----------------------------
-name, authentication_status, username = authenticator.login(location="sidebar")
+login_result = authenticator.login(location="sidebar")
+
+if login_result is not None:
+    name = login_result["name"]
+    authentication_status = login_result["authentication_status"]
+    username = login_result["username"]
+else:
+    authentication_status = None
 
 # -----------------------------
-# Handle authentication status
+# Handle login status
 # -----------------------------
 if authentication_status:
     st.success(f"Welcome {name}")
