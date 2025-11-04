@@ -442,8 +442,8 @@ import streamlit_authenticator as stauth
 # -----------------------------
 # Supabase client setup
 # -----------------------------
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
+url = st.secrets["postgresql://postgres:[Lwethu%6]@db.nghahpnwtgqdfokrljhb.supabase.co:5432/postgres"]
+key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY5MDE4MiwiZXhwIjoyMDc3MjY2MTgyfQ.KiVWV-KoNn59iJfnv5cshhXH3Zx8_c_FPbIthyvEDZk"]
 supabase: Client = create_client(url, key)
 
 # -----------------------------
