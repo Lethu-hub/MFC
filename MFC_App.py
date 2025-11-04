@@ -7,7 +7,6 @@ from datetime import datetime
 from analytics_dashboard import display_analytics
 import plotly.express as px
 from event_predictor import EventPredictor
-import streamlit_authenticator as stauth
 
 # ==========================
 # Page config
@@ -442,9 +441,10 @@ import streamlit_authenticator as stauth
 # -----------------------------
 # Supabase client setup
 # -----------------------------
-url = ["postgresql://postgres:[M@t3b3l32025]@db.nghahpnwtgqdfokrljhb.supabase.co:5432/postgres"]
-key = ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"]
-supabase: Client = create_client(url, key)
+SUPABASE_URL = "postgresql://postgres:M@t3b3l32025@db.nghahpnwtgqdfokrljhb.supabase.co:5432/postgres"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------
 # Default admin credentials
