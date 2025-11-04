@@ -434,6 +434,10 @@ elif page == "Predictions":
                 fig.update_traces(textposition="top center")
                 st.plotly_chart(fig, use_container_width=True)
 
+# -----------------------------
+# Admin Page
+# -----------------------------
+
 import streamlit as st
 from supabase import create_client, Client
 import streamlit_authenticator as stauth
@@ -441,7 +445,7 @@ import streamlit_authenticator as stauth
 # -----------------------------
 # Supabase client setup
 # -----------------------------
-SUPABASE_URL = "https://supabase.com/dashboard/project/nghahpnwtgqdfokrljhb/database"
+SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -452,7 +456,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-hashed_password = stauth.Hasher([default_password]).generate()[0]
+# Corrected Hasher usage
+hashed_password = stauth.Hasher().generate([default_password])[0]
 
 users = {
     default_username: {
