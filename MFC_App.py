@@ -437,7 +437,7 @@ elif page == "Predictions":
 # -----------------------------
 # Admin Page
 # -----------------------------
-
+# Streamlit + Supabase + Admin login
 import streamlit as st
 from supabase import create_client, Client
 import streamlit_authenticator as stauth
@@ -445,9 +445,8 @@ import streamlit_authenticator as stauth
 # -----------------------------
 # Supabase client setup
 # -----------------------------
-SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"  # your Supabase project URL
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"  # anon or service role key
-
+SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
+SUPABASE_KEY = "YOUR_SUPABASE_KEY"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------
@@ -456,23 +455,32 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-default_password = "MFCAdmin123"
-
-# Instantiate Hasher
+# Hash password
 hasher = stauth.Hasher()
 hashed_passwords = hasher.generate([default_password])
 
 users = {
-    "admin": {
+    default_username: {
         "name": "MFC Admin",
         "password": hashed_passwords[0]
     }
 }
 
 # -----------------------------
+# Authenticator
+# -----------------------------
+authenticator = stauth.Authenticate(
+    users,
+    "mfc_cookie",
+    "mfc_key",
+    cookie_expiry_days=1
+)
+
+# -----------------------------
 # Admin login
 # -----------------------------
 name, authentication_status, username = authenticator.login("Admin Login", "sidebar")
+
 
 if authentication_status:
     st.success(f"Welcome {name}")
