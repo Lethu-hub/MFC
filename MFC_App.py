@@ -439,8 +439,8 @@ elif page == "Predictions":
 # Admin Page
 # ==============================
 import streamlit as st
-from supabase import create_client, Client
 import streamlit_authenticator as stauth
+from supabase import create_client, Client
 
 # -----------------------------
 # Supabase setup
@@ -450,19 +450,14 @@ SUPABASE_KEY = "YOUR_SUPABASE_KEY"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------
-# Default admin credentials
-# -----------------------------
-import streamlit_authenticator as stauth
-
 # Admin credentials
+# -----------------------------
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# ✅ Correct way to hash (for streamlit-authenticator >= 0.3.3)
-hashed_passwords = stauth.Hasher.hash_list([default_password])
-hashed_password = hashed_passwords[0]
+# ✅ Use correct hasher for 0.3.3
+hashed_password = stauth.Hasher.hash_list([default_password])[0]
 
-# ✅ Build credentials
 credentials = {
     "usernames": {
         default_username: {
@@ -472,12 +467,12 @@ credentials = {
     }
 }
 
-# ✅ Create authenticator
+# ✅ Initialize authenticator
 authenticator = stauth.Authenticate(
     credentials,
     "admin_cookie",
     "admin_key",
-    cookie_expiry_days=30
+    cookie_expiry_days=1
 )
 
 # -----------------------------
@@ -488,8 +483,7 @@ login_result = authenticator.login(location="sidebar")
 if login_result:
     name, authentication_status, username = login_result
 else:
-    name, authentication_status, username = None, None, None
-
+    name = authentication_status = username = None
 
 # -----------------------------
 # Handle login status
@@ -498,80 +492,8 @@ if authentication_status:
     st.success(f"Welcome {name}")
     st.title("🛠️ MFC Admin Panel")
 
-    tab = st.radio("Select action", ["Add Player", "Add Match", "Add Event"])
-
-    if tab == "Add Player":
-        st.subheader("Add a New Player")
-        player_name = st.text_input("Full Name")
-        first_name = st.text_input("First Name")
-        surname = st.text_input("Surname")
-        dob = st.date_input("Date of Birth")
-        height = st.number_input("Height (cm)", min_value=100, max_value=250)
-        weight = st.number_input("Weight (kg)", min_value=40, max_value=150)
-        position = st.text_input("Position")
-        nationality = st.text_input("Nationality")
-        jersey_number = st.number_input("Jersey Number", min_value=1, max_value=99)
-
-        if st.button("Add Player"):
-            data = {
-                "player_name": player_name,
-                "first_name": first_name,
-                "surname": surname,
-                "dob": str(dob),
-                "height_cm": height,
-                "weight_kg": weight,
-                "position": position,
-                "nationality": nationality,
-                "jersey_number": jersey_number
-            }
-            try:
-                supabase.table("players").insert(data).execute()
-                st.success(f"Player {player_name} added successfully!")
-            except Exception as e:
-                st.error(f"Failed to add player: {e}")
-
-    elif tab == "Add Match":
-        st.subheader("Add a New Match")
-        home_team = st.text_input("Home Team")
-        away_team = st.text_input("Away Team")
-        match_date = st.date_input("Match Date")
-        location = st.text_input("Location")
-
-        if st.button("Add Match"):
-            data = {
-                "home_team": home_team,
-                "away_team": away_team,
-                "match_date": str(match_date),
-                "location": location
-            }
-            try:
-                supabase.table("matches").insert(data).execute()
-                st.success("Match added successfully!")
-            except Exception as e:
-                st.error(f"Failed to add match: {e}")
-
-    elif tab == "Add Event":
-        st.subheader("Add a New Event")
-        match_id = st.number_input("Match ID", min_value=1)
-        player_id = st.number_input("Player ID", min_value=1)
-        event_type = st.text_input("Event Type")
-        event_time = st.number_input("Minute of Event", min_value=0, max_value=120)
-
-        if st.button("Add Event"):
-            data = {
-                "match_id": match_id,
-                "player_id": player_id,
-                "event_type": event_type,
-                "minute": event_time
-            }
-            try:
-                supabase.table("match_events").insert(data).execute()
-                st.success("Event added successfully!")
-            except Exception as e:
-                st.error(f"Failed to add event: {e}")
-
 elif authentication_status is False:
     st.error("Username/password is incorrect")
+
 else:
     st.info("Please log in with admin credentials")
-
