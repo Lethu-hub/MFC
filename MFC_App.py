@@ -457,15 +457,16 @@ default_password = "MFCAdmin123"
 # -----------------------------
 # Hash the password (new API)
 # -----------------------------
-hashed_passwords = stauth.hasher([default_password]).generate()
+# Create Hasher instance and generate hash
+hasher = stauth.Hasher([default_password])
+hashed_passwords = hasher.generate()
 
 users = {
-    default_username: {
+    "admin": {
         "name": "MFC Admin",
         "password": hashed_passwords[0]
     }
 }
-
 # -----------------------------
 # Authenticator
 # -----------------------------
