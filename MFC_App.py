@@ -438,6 +438,10 @@ elif page == "Predictions":
 # ==============================
 # Admin Page
 # ==============================
+# ==============================
+# MFC Admin Panel - Streamlit
+# ==============================
+
 import streamlit as st
 import streamlit_authenticator as stauth
 from supabase import create_client, Client
@@ -455,8 +459,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# ✅ Correct password hashing for 0.4.x+
-hashed_password = stauth.Hasher().hash([default_password])[0]
+# ✅ Password hashing for streamlit-authenticator >=0.4.2
+hashed_password = stauth.Hasher().hash(default_password)
 
 credentials = {
     "usernames": {
@@ -472,8 +476,8 @@ credentials = {
 # -----------------------------
 authenticator = stauth.Authenticate(
     credentials,
-    "admin_cookie",
-    "admin_key",
+    cookie_name="admin_cookie",
+    key="admin_key",
     cookie_expiry_days=1
 )
 
@@ -488,6 +492,12 @@ name, authentication_status, username = authenticator.login(
 if authentication_status:
     st.success(f"Welcome {name}")
     st.title("🛠️ MFC Admin Panel")
+    
+    # -----------------------------
+    # Example admin actions here
+    # -----------------------------
+    st.write("Here you can manage your app, view reports, and perform admin tasks.")
+    
 elif authentication_status is False:
     st.error("Username/password is incorrect")
 else:
