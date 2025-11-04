@@ -450,12 +450,14 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+import streamlit_authenticator as stauth
+
 # Default admin credentials
 default_username = "admin"
 default_password = "MFCAdmin123"
 
 # Create hashed password list
-hashed_passwords = stauth.hasher([default_password]).generate()  # returns a list
+hashed_passwords = stauth.Hasher([default_password]).generate()
 
 users = {
     default_username: {
