@@ -484,10 +484,7 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 # Admin login
 # -----------------------------
-name, authentication_status, username = authenticator.login(
-    name="Admin Login",
-    location="sidebar"
-)
+name, authentication_status, username = authenticator.login(location="sidebar")
 
 if authentication_status:
     st.success(f"Welcome {name}")
