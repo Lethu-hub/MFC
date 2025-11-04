@@ -455,7 +455,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# ✅ Correct password hashing for version 0.3.3
+# ✅ Correct password hashing for 0.4.x
 hashed_password = stauth.Hasher([default_password]).generate()[0]
 
 credentials = {
@@ -467,7 +467,7 @@ credentials = {
     }
 }
 
-# ✅ Initialize authenticator
+# ✅ Initialize authenticator (same syntax)
 authenticator = stauth.Authenticate(
     credentials,
     "admin_cookie",
@@ -478,7 +478,10 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 # Admin login
 # -----------------------------
-name, authentication_status, username = authenticator.login("Admin Login")
+name, authentication_status, username = authenticator.login(
+    "Admin Login",
+    location="sidebar"  # ✅ required in 0.4.x
+)
 
 # -----------------------------
 # Handle login status
