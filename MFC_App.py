@@ -485,7 +485,7 @@ authenticator = stauth.Authenticate(
 # Admin login
 # -----------------------------
 name, authentication_status, username = authenticator.login(
-    "Admin Login",
+    name="Admin Login",
     location="sidebar"
 )
 
@@ -493,12 +493,11 @@ if authentication_status:
     st.success(f"Welcome {name}")
     st.title("🛠️ MFC Admin Panel")
     
-    # -----------------------------
-    # Example admin actions here
-    # -----------------------------
+    # Example admin actions
     st.write("Here you can manage your app, view reports, and perform admin tasks.")
     
 elif authentication_status is False:
     st.error("Username/password is incorrect")
 else:
     st.info("Please log in with admin credentials")
+
