@@ -475,22 +475,33 @@ credentials = {
 # Initialize authenticator
 # -----------------------------
 authenticator = stauth.Authenticate(
-    credentials,
+    credentials=credentials,
     cookie_name="admin_cookie",
     key="admin_key",
     cookie_expiry_days=1
 )
 
-# Login
-login_status = authenticator.login(location="sidebar")
+# -----------------------------
+# Display login widget
+# -----------------------------
+authenticator.login(location="sidebar")
 
-if login_status["authentication_status"]:
-    st.success(f"Welcome {login_status['name']}")
+# -----------------------------
+# Check authentication status
+# -----------------------------
+if authenticator.authenticated:
+    st.success(f"Welcome {credentials['usernames'][default_username]['name']}")
     st.title("🛠️ MFC Admin Panel")
+    
+    # Example admin actions
     st.write("Here you can manage your app, view reports, and perform admin tasks.")
-
-elif login_status["authentication_status"] is False:
+    
+    # Example: list Supabase tables
+    # tables = supabase.table("your_table_name").select("*").execute()
+    # st.write(tables.data)
+    
+elif authenticator.failed:
     st.error("Username/password is incorrect")
-
 else:
     st.info("Please log in with admin credentials")
+
