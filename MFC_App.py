@@ -455,10 +455,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# Hash the password using the new API
+# Hash the password using the latest API
 hashed_password = stauth.Hasher.hash_list([default_password])[0]
 
-# Build credentials dict for latest streamlit-authenticator
+# Build credentials dict for the latest streamlit-authenticator
 credentials = {
     "usernames": {
         default_username: {
@@ -483,11 +483,13 @@ authenticator = stauth.Authenticate(
 # -----------------------------
 name, authentication_status, username = authenticator.login(location="sidebar")
 
+# -----------------------------
+# Handle authentication status
+# -----------------------------
 if authentication_status:
     st.success(f"Welcome {name}")
     st.title("🛠️ MFC Admin Panel")
 
-    # Select action
     tab = st.radio("Select action", ["Add Player", "Add Match", "Add Event"])
 
     # -----------------------------
@@ -569,12 +571,14 @@ if authentication_status:
             except Exception as e:
                 st.error(f"Failed to add event: {e}")
 
+# -----------------------------
+# Authentication failed
+# -----------------------------
 elif authentication_status is False:
     st.error("Username/password is incorrect")
-else:
-    st.info("Please log in with admin credentials")
 
-elif authentication_status == False:
-    st.error("Username/password is incorrect")
+# -----------------------------
+# No login yet
+# -----------------------------
 else:
     st.info("Please log in with admin credentials")
