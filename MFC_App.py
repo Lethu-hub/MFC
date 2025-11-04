@@ -452,30 +452,32 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -----------------------------
 # Default admin credentials
 # -----------------------------
+import streamlit_authenticator as stauth
+
+# Admin credentials
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# Hash the password (using the new API)
-hashed_passwords = stauth.Hasher([default_password]).generate()
+# ✅ Correct way to hash (for streamlit-authenticator >= 0.3.3)
+hashed_passwords = stauth.Hasher.hash_list([default_password])
+hashed_password = hashed_passwords[0]
 
-# Build credentials dict
+# ✅ Build credentials
 credentials = {
     "usernames": {
         default_username: {
-            "name": "MFC Admin",
-            "password": hashed_passwords[0]
+            "name": "Administrator",
+            "password": hashed_password
         }
     }
 }
 
-# -----------------------------
-# Initialize Authenticator
-# -----------------------------
+# ✅ Create authenticator
 authenticator = stauth.Authenticate(
-    credentials=credentials,
-    cookie_name="mfc_cookie",
-    key="mfc_key",
-    cookie_expiry_days=1
+    credentials,
+    "admin_cookie",
+    "admin_key",
+    cookie_expiry_days=30
 )
 
 # -----------------------------
