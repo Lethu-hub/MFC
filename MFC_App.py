@@ -450,7 +450,7 @@ from datetime import date
 # Supabase setup
 # -----------------------------
 SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
-SUPABASE_KEY = "YOUR_SUPABASE_KEY"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------
