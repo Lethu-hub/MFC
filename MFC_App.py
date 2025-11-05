@@ -443,6 +443,8 @@ elif page == "Predictions":
 import streamlit as st
 import streamlit_authenticator as stauth
 from supabase import create_client, Client
+import uuid
+from datetime import date
 
 # -----------------------------
 # Supabase setup
@@ -456,7 +458,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -----------------------------
 default_username = "admin"
 default_password = "MFCAdmin123"
-
 hashed_password = stauth.Hasher().hash(default_password)
 
 credentials = {
@@ -469,7 +470,7 @@ credentials = {
 }
 
 # -----------------------------
-# Initialize authenticator
+# Authenticator
 # -----------------------------
 authenticator = stauth.Authenticate(
     credentials=credentials,
@@ -478,33 +479,109 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=1
 )
 
-# -----------------------------
-# Show login widget in sidebar
-# -----------------------------
 authenticator.login(location="sidebar")
 
-# -----------------------------
-# Logout button
-# -----------------------------
+# Logout
 if st.session_state.get("authentication_status"):
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
-        st.experimental_rerun()  # refresh app after logout
+        st.experimental_rerun()
 
 # -----------------------------
-# Check login by session state
+# Admin panel main
 # -----------------------------
 if st.session_state.get("authentication_status"):
     st.success(f"Welcome {st.session_state['name']}")
-    st.title("🛠️ MFC Admin Panel")
-    st.write("Here you can manage your app, view reports, and perform admin tasks.")
-    
-    # Example: fetch Supabase table (replace 'your_table_name')
-    # data = supabase.table("your_table_name").select("*").execute()
-    # st.write(data.data)
+    st.title("🛠️ MFC Admin Dashboard")
 
-elif st.session_state.get("authentication_status") is False:
-    st.error("Username/password is incorrect")
+    st.sidebar.header("Manage Tables")
+    table_choice = st.sidebar.radio("Select Table", ["Players", "Matches", "Match Events"])
 
-else:
-    st.info("Please log in with admin credentials")
+    # =============================
+    # --- Players Table ---
+    # =============================
+    if table_choice == "Players":
+        players = supabase.table("players").select("*").execute().data or []
+        df_players = st.dataframe(players)  # view all players
+        edited_players = st.experimental_data_editor(players, num_rows="dynamic")
+
+        if st.button("Update Players"):
+            for row in edited_players:
+                supabase.table("players").update(row).eq("player_id", row["player_id"]).execute()
+            st.success("Players updated successfully!")
+
+        if st.button("Add New Player"):
+            new_player = {
+                "player_id": str(uuid.uuid4()),
+                "first_name": "",
+                "surname": "",
+                "date_of_birth": str(date.today()),
+                "nationality": "",
+                "position": "",
+                "jersey_number": 0,
+                "height_cm": 0,
+                "weight_kg": 0
+            }
+            supabase.table("players").insert(new_player).execute()
+            st.experimental_rerun()
+
+    # =============================
+    # --- Matches Table ---
+    # =============================
+    elif table_choice == "Matches":
+        matches = supabase.table("matches").select("*").execute().data or []
+        st.dataframe(matches)
+        edited_matches = st.experimental_data_editor(matches, num_rows="dynamic")
+
+        if st.button("Update Matches"):
+            for row in edited_matches:
+                supabase.table("matches").update(row).eq("match_id", row["match_id"]).execute()
+            st.success("Matches updated successfully!")
+
+        if st.button("Add New Match"):
+            new_match = {
+                "match_id": str(uuid.uuid4()),
+                "match_date": str(date.today()),
+                "opponent": "",
+                "venue": "",
+                "result": "",
+                "score_mfc": 0,
+                "score_opponent": 0,
+                "season": ""
+            }
+            supabase.table("matches").insert(new_match).execute()
+            st.experimental_rerun()
+
+    # =============================
+    # --- Match Events Table ---
+    # =============================
+    elif table_choice == "Match Events":
+        events = supabase.table("match_events").select("*").execute().data or []
+        st.dataframe(events)
+        edited_events = st.experimental_data_editor(events, num_rows="dynamic")
+
+        if st.button("Update Events"):
+            for row in edited_events:
+                supabase.table("match_events").update(row).eq("event_id", row["event_id"]).execute()
+            st.success("Match Events updated successfully!")
+
+        if st.button("Add New Event"):
+            # Load players and matches for dropdown
+            players = supabase.table("players").select("*").execute().data or []
+            matches = supabase.table("matches").select("*").execute().data or []
+
+            if players and matches:
+                new_event = {
+                    "event_id": str(uuid.uuid4()),
+                    "player_id": players[0]["player_id"],
+                    "match_id": matches[0]["match_id"],
+                    "event_type": "Goal",
+                    "minute": 0,
+                    "description": "",
+                    "season": ""
+                }
+                supabase.table("match_events").insert(new_event).execute()
+                st.experimental_rerun()
+            else:
+                st.warning("Add at least one player and one match first.")
+
