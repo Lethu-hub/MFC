@@ -458,19 +458,19 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -----------------------------
 default_username = "admin"
 default_password = "MFCAdmin123"
-hashed_password = stauth.Hasher().hash(default_password)
+hashed_password = stauth.Hasher([default_password]).generate()  # returns a list
 
 credentials = {
     "usernames": {
         default_username: {
             "name": "Administrator",
-            "password": hashed_password
+            "password": hashed_password[0]  # first element
         }
     }
 }
 
 # -----------------------------
-# Authenticator
+# Authenticator setup
 # -----------------------------
 authenticator = stauth.Authenticate(
     credentials=credentials,
@@ -480,20 +480,24 @@ authenticator = stauth.Authenticate(
 )
 
 # -----------------------------
-# Login (main page)
+# Login on main page
 # -----------------------------
-name, authentication_status, username = authenticator.login("Login", "main")
+name, authentication_status, username = authenticator.login("Login", location="main")
 
 # -----------------------------
-# Logged-in user
+# Only show admin panel if logged in
 # -----------------------------
 if authentication_status:
-    st.write(f"Welcome {name}!")
+    st.success(f"Welcome, {name}!")
     
+    # Logout button
     if st.button("Logout"):
         authenticator.logout("main")
         st.experimental_rerun()
-    
+
+    # =======================================================
+    # ⚽ Admin Database Manager
+    # =======================================================
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
@@ -518,7 +522,7 @@ if authentication_status:
             return f"{year-1}/{year}"
 
     # -----------------------------
-    # Choose Table
+    # Choose table to manage
     # -----------------------------
     table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
 
@@ -565,6 +569,13 @@ if authentication_status:
             df_players = pd.DataFrame(players)
             df_display = df_players.drop(columns=["player_id"], errors="ignore")
             st.dataframe(df_display, use_container_width=True)
+            delete_id = st.text_input("Enter Player ID to delete", placeholder="Paste UUID here")
+            if st.button("🗑️ Delete Player"):
+                if delete_id.strip():
+                    supabase.table("players").delete().eq("player_id", delete_id.strip()).execute()
+                    st.success("✅ Player deleted successfully! Refresh to update list.")
+                else:
+                    st.error("Please enter a valid Player ID.")
         else:
             st.info("No players found.")
 
@@ -609,6 +620,13 @@ if authentication_status:
             df_matches = pd.DataFrame(matches)
             df_display = df_matches.drop(columns=["match_id"], errors="ignore")
             st.dataframe(df_display, use_container_width=True)
+            delete_id = st.text_input("Enter Match ID to delete", placeholder="Paste UUID here")
+            if st.button("🗑️ Delete Match"):
+                if delete_id.strip():
+                    supabase.table("matches").delete().eq("match_id", delete_id.strip()).execute()
+                    st.success("✅ Match deleted successfully! Refresh to update list.")
+                else:
+                    st.error("Please enter a valid Match ID.")
         else:
             st.info("No matches found.")
 
@@ -618,8 +636,8 @@ if authentication_status:
     elif table_choice == "Match Events":
         st.subheader("🎯 Add New Match Event")
         with st.form("add_event_form", clear_on_submit=True):
-            match_id = st.text_input("Match ID * (from Matches table)")
-            player_id = st.text_input("Player ID * (from Players table)")
+            match_id = st.text_input("Match ID * (UUID from matches table)")
+            player_id = st.text_input("Player ID * (UUID from players table)")
             event_type = st.selectbox("Event Type *", ["Goal", "Assist", "Foul", "Substitution", "Injury", "Card", "Other"])
             minute = st.number_input("Minute", min_value=0, step=1)
             description = st.text_area("Description")
@@ -651,13 +669,20 @@ if authentication_status:
             df_events = pd.DataFrame(events)
             df_display = df_events.drop(columns=["event_id"], errors="ignore")
             st.dataframe(df_display, use_container_width=True)
+            delete_id = st.text_input("Enter Event ID to delete", placeholder="Paste UUID here")
+            if st.button("🗑️ Delete Event"):
+                if delete_id.strip():
+                    supabase.table("match_events").delete().eq("event_id", delete_id.strip()).execute()
+                    st.success("✅ Event deleted successfully! Refresh to update list.")
+                else:
+                    st.error("Please enter a valid Event ID.")
         else:
             st.info("No match events found.")
 
 # -----------------------------
-# Login failed or not entered
+# Show info if not logged in
 # -----------------------------
-elif authentication_status == False:
-    st.error("❌ Username/password incorrect")
-else:
-    st.info("ℹ️ Please log in to access the admin panel")
+elif authentication_status is False:
+    st.error("❌ Username/password is incorrect")
+elif authentication_status is None:
+    st.info("ℹ️ Please enter your login credentials")
