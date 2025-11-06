@@ -487,6 +487,25 @@ authenticator = stauth.Authenticate(
 name, authentication_status, username = authenticator.login("Login", location="main")
 
 # ==============================
+# Authenticator setup
+# ==============================
+authenticator = stauth.Authenticate(
+    credentials=credentials,
+    cookie_name="admin_cookie",
+    key="admin_key",
+    cookie_expiry_days=1
+)
+
+# ==============================
+# Login
+# ==============================
+# Use keyword arguments to avoid multiple values error
+name, authentication_status, username = authenticator.login(
+    name="Login", 
+    location="main"
+)
+
+# ==============================
 # Authenticated block
 # ==============================
 if authentication_status:
