@@ -499,12 +499,10 @@ authenticator = stauth.Authenticate(
 # ==============================
 # Login
 # ==============================
-# Use keyword arguments to avoid multiple values error
 name, authentication_status, username = authenticator.login(
-    name="Login", 
+    name="Login",
     location="main"
 )
-
 # ==============================
 # Authenticated block
 # ==============================
