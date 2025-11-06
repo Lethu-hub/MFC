@@ -446,81 +446,147 @@ elif page == "Predictions":
 # ==============================
 # MFC Admin Panel - Streamlit
 # ==============================
+elif page == "Admin":
+    # -----------------------------
+    # Supabase setup
+    # -----------------------------
+    SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
+    SUPABASE_KEY = "YOUR_KEY_HERE"
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# -----------------------------
-# Supabase setup
-# -----------------------------
-SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    # -----------------------------
+    # Admin credentials
+    # -----------------------------
+    default_username = "admin"
+    default_password = "MFCAdmin123"
+    hashed_password = stauth.Hasher().hash(default_password)
 
-# -----------------------------
-# Admin credentials
-# -----------------------------
-default_username = "admin"
-default_password = "MFCAdmin123"
-hashed_password = stauth.Hasher().hash(default_password)
-
-credentials = {
-    "usernames": {
-        default_username: {
-            "name": "Administrator",
-            "password": hashed_password
+    credentials = {
+        "usernames": {
+            default_username: {
+                "name": "Administrator",
+                "password": hashed_password
+            }
         }
     }
-}
-
-# -----------------------------
-# Authenticator
-# -----------------------------
-authenticator = stauth.Authenticate(
-    credentials=credentials,
-    cookie_name="admin_cookie",
-    key="admin_key",
-    cookie_expiry_days=1
-)
-
-# ==============================
-# Display login form in sidebar
-# ==============================
-authenticator.login(location="sidebar")
-
-# ==============================
-# Check authentication using session_state
-# ==============================
-if st.session_state.get("authentication_status"):
-    st.sidebar.success(f"Logged in as {st.session_state.get('name')}")
 
     # -----------------------------
-    # Logout button
+    # Authenticator
     # -----------------------------
-    if st.sidebar.button("Logout"):
-        authenticator.logout("sidebar")
-        # Clear session keys safely
-        for key in ["authentication_status", "name", "username"]:
-            if key in st.session_state:
-                del st.session_state[key]
-        st.experimental_rerun = lambda: None  # stub to avoid errors in latest Streamlit
-        st.info("You have been logged out. Please log in again.")
+    authenticator = stauth.Authenticate(
+        credentials=credentials,
+        cookie_name="admin_cookie",
+        key="admin_key",
+        cookie_expiry_days=1
+    )
 
     # -----------------------------
-    # Admin panel content
+    # Display login form in sidebar
     # -----------------------------
-    st.title("📊 MFC Admin Data Manager")
-    st.write("Add and manage players, matches, and match events.")
+    authenticator.login(location="sidebar")
 
-    # Table selection
-    table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
+    # -----------------------------
+    # Check authentication using session_state
+    # -----------------------------
+    if st.session_state.get("authentication_status"):
+        st.sidebar.success(f"Logged in as {st.session_state.get('name')}")
 
-    if table_choice == "Players":
-        player_form(supabase)
-    elif table_choice == "Matches":
-        match_form(supabase)
-    elif table_choice == "Match Events":
-        match_event_form(supabase)
+        # Logout button
+        if st.sidebar.button("Logout"):
+            authenticator.logout("sidebar")
+            for key in ["authentication_status", "name", "username"]:
+                st.session_state.pop(key, None)
+            st.experimental_rerun = lambda: None  # temporary stub
+            st.info("You have been logged out. Please log in again.")
 
-# ==============================
-# Not authenticated
-# ==============================
-else:
-    st.info("ℹ️ Please log in to access the admin panel")
+        # Admin panel content
+        st.title("📊 MFC Admin Data Manager")
+        table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
+
+        if table_choice == "Players":
+            player_form(supabase)
+        elif table_choice == "Matches":
+            match_form(supabase)
+        elif table_choice == "Match Events":
+            match_event_form(supabase)
+
+    else:
+        st.info("ℹ️ Please log in to access the admin panel")
+elif page == "Admin":
+    # -----------------------------
+    # Supabase setup
+    # -----------------------------
+    SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
+    SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    
+    # -----------------------------
+    # Admin credentials
+    # -----------------------------
+    default_username = "admin"
+    default_password = "MFCAdmin123"
+    hashed_password = stauth.Hasher().hash(default_password)
+    
+    credentials = {
+        "usernames": {
+            default_username: {
+                "name": "Administrator",
+                "password": hashed_password
+            }
+        }
+    }
+    
+    # -----------------------------
+    # Authenticator
+    # -----------------------------
+    authenticator = stauth.Authenticate(
+        credentials=credentials,
+        cookie_name="admin_cookie",
+        key="admin_key",
+        cookie_expiry_days=1
+    )
+    
+    # ==============================
+    # Display login form in sidebar
+    # ==============================
+    authenticator.login(location="sidebar")
+    
+    # ==============================
+    # Check authentication using session_state
+    # ==============================
+    if st.session_state.get("authentication_status"):
+        st.sidebar.success(f"Logged in as {st.session_state.get('name')}")
+    
+        # -----------------------------
+        # Logout button
+        # -----------------------------
+        if st.sidebar.button("Logout"):
+            authenticator.logout("sidebar")
+            # Clear session keys safely
+            for key in ["authentication_status", "name", "username"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.experimental_rerun = lambda: None  # stub to avoid errors in latest Streamlit
+            st.info("You have been logged out. Please log in again.")
+    
+        # -----------------------------
+        # Admin panel content
+        # -----------------------------
+        st.title("📊 MFC Admin Data Manager")
+        st.write("Add and manage players, matches, and match events.")
+    
+        # Table selection
+        table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
+    
+        if table_choice == "Players":
+            player_form(supabase)
+        elif table_choice == "Matches":
+            match_form(supabase)
+        elif table_choice == "Match Events":
+            match_event_form(supabase)
+    
+    # ==============================
+    # Not authenticated
+    # ==============================
+    else:
+        st.info("ℹ️ Please log in to access the admin panel")
