@@ -463,17 +463,20 @@ default_password = "MFCAdmin123"
 # -----------------------------
 # Streamlit Authenticator 0.4.2 compatible
 # -----------------------------
-hasher = stauth.Hasher([default_password])
-hashed_passwords = hasher.generate()
+
+# 0.4.2 style: Hasher() takes no arguments
+hasher = stauth.Hasher()
+hashed_passwords = hasher.generate([default_password])
 
 credentials = {
     "usernames": {
-        default_username: {
+        "admin": {
             "name": "Administrator",
             "password": hashed_passwords[0]
         }
     }
 }
+✅ Key points:
 
 # -----------------------------
 # Authenticator
