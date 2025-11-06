@@ -483,7 +483,8 @@ authenticator = stauth.Authenticate(
 # ==============================
 # Login
 # ==============================
-name, authentication_status, username = authenticator.login("Login")
+# Specify location to fix the ValueError
+name, authentication_status, username = authenticator.login("Login", location="main")
 
 # ==============================
 # Authenticated block
