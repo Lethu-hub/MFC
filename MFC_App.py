@@ -491,8 +491,9 @@ if st.session_state.get("authentication_status"):
 # Admin panel main
 # -----------------------------
 
+st.set_page_config(page_title="⚽ MFC Admin Panel", layout="wide")
 st.title("⚽ MFC Admin Panel")
-st.caption("Use this dashboard to add data to your Supabase tables.")
+st.caption("Add, view, edit, and delete data from the Supabase database.")
 
 # -----------------------------
 # Select Table
@@ -503,7 +504,7 @@ table_choice = st.selectbox(
 )
 
 # =======================================================
-# 🧍 PLAYERS FORM
+# 🧍 PLAYERS CRUD
 # =======================================================
 if table_choice == "Players":
     st.subheader("👥 Add New Player")
@@ -539,8 +540,25 @@ if table_choice == "Players":
                 else:
                     st.error("❌ Failed to add player.")
 
+    st.divider()
+    st.subheader("📋 Manage Players")
+
+    players = supabase.table("players").select("*").execute().data
+    if players:
+        df_players = pd.DataFrame(players)
+        selected = st.dataframe(df_players, use_container_width=True)
+        delete_id = st.text_input("Enter Player ID to delete")
+        if st.button("🗑️ Delete Player"):
+            if delete_id:
+                supabase.table("players").delete().eq("player_id", delete_id).execute()
+                st.success("✅ Player deleted successfully! Refresh to update list.")
+            else:
+                st.error("Please enter a valid Player ID.")
+    else:
+        st.info("No players found.")
+
 # =======================================================
-# 🏟️ MATCHES FORM
+# 🏟️ MATCHES CRUD
 # =======================================================
 elif table_choice == "Matches":
     st.subheader("🏆 Add New Match")
@@ -574,13 +592,29 @@ elif table_choice == "Matches":
                 else:
                     st.error("❌ Failed to add match.")
 
+    st.divider()
+    st.subheader("📋 Manage Matches")
+
+    matches = supabase.table("matches").select("*").execute().data
+    if matches:
+        df_matches = pd.DataFrame(matches)
+        st.dataframe(df_matches, use_container_width=True)
+        delete_id = st.text_input("Enter Match ID to delete")
+        if st.button("🗑️ Delete Match"):
+            if delete_id:
+                supabase.table("matches").delete().eq("match_id", delete_id).execute()
+                st.success("✅ Match deleted successfully! Refresh to update list.")
+            else:
+                st.error("Please enter a valid Match ID.")
+    else:
+        st.info("No matches found.")
+
 # =======================================================
-# ⚡ MATCH EVENTS FORM
+# ⚡ MATCH EVENTS CRUD
 # =======================================================
 elif table_choice == "Match Events":
     st.subheader("⚡ Add Match Event")
 
-    # Fetch matches & players to use as dropdowns
     matches = supabase.table("matches").select("match_id, opponent").execute().data
     players = supabase.table("players").select("player_id, first_name, surname").execute().data
 
@@ -613,3 +647,20 @@ elif table_choice == "Match Events":
                     st.success(f"✅ {event_type} event added successfully!")
                 else:
                     st.error("❌ Failed to add match event.")
+
+    st.divider()
+    st.subheader("📋 Manage Match Events")
+
+    events = supabase.table("match_events").select("*").execute().data
+    if events:
+        df_events = pd.DataFrame(events)
+        st.dataframe(df_events, use_container_width=True)
+        delete_id = st.text_input("Enter Event ID to delete")
+        if st.button("🗑️ Delete Event"):
+            if delete_id:
+                supabase.table("match_events").delete().eq("event_id", delete_id).execute()
+                st.success("✅ Event deleted successfully! Refresh to update list.")
+            else:
+                st.error("Please enter a valid Event ID.")
+    else:
+        st.info("No match events found.")
