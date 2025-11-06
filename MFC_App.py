@@ -470,7 +470,7 @@ credentials = {
 }
 
 # -----------------------------
-# Authenticator
+# Authenticator setup
 # -----------------------------
 authenticator = stauth.Authenticate(
     credentials=credentials,
@@ -479,17 +479,18 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=1
 )
 
-# Call login first and get the status
-name, authentication_status, username = authenticator.login(
-    name="Login",
-    location="sidebar"
-)
+# -----------------------------
+# Login
+# -----------------------------
+name, authentication_status, username = authenticator.login("Login")
 
 # -----------------------------
 # Authenticated block
 # -----------------------------
 if authentication_status:
     st.sidebar.success(f"Logged in as {name}")
+
+    # Logout button
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
@@ -671,4 +672,5 @@ if authentication_status:
 elif authentication_status is False:
     st.error("❌ Username/password is incorrect")
 elif authentication_status is None:
+    st.info("ℹ️ Please enter your username and password")
     st.info("ℹ️ Please enter your username and password")
