@@ -480,23 +480,35 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=1
 )
 
+# ==============================
 # Display login form in sidebar
+# ==============================
 authenticator.login(location="sidebar")
 
-# Use session_state to check authentication
+# ==============================
+# Check authentication using session_state
+# ==============================
 if st.session_state.get("authentication_status"):
     st.sidebar.success(f"Logged in as {st.session_state.get('name')}")
 
-    # Logout button
+    # Logout safely
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
+        # Clear session keys to prevent errors
+        for key in ["authentication_status", "name", "username"]:
+            if key in st.session_state:
+                del st.session_state[key]
         st.experimental_rerun()
 
+    # ==============================
     # Admin panel content
+    # ==============================
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
+    # Table selection
     table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
+
     if table_choice == "Players":
         player_form(supabase)
     elif table_choice == "Matches":
