@@ -1,11 +1,18 @@
-import streamlit as st
+import os
+import uuid
+from datetime import date, datetime
+
 import pandas as pd
+import plotly.express as px
+import streamlit as st
+import streamlit_authenticator as stauth
+from supabase import create_client, Client
+
+# Custom modules
 from data_loader import load_all_data
 from stats import central_tendency, measures_of_spread, categorical_counts
 from charts import univariate_chart
-from datetime import datetime
 from analytics_dashboard import display_analytics
-import plotly.express as px
 from event_predictor import EventPredictor
 
 # ==========================
@@ -459,7 +466,9 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-hashed_passwords = stauth.Hasher([default_password]).generate()
+# Compatible with streamlit-authenticator 0.4.2
+hasher = stauth.Hasher()
+hashed_passwords = hasher.generate([default_password])
 
 credentials = {
     "usernames": {
@@ -481,7 +490,7 @@ authenticator = stauth.Authenticate(
 )
 
 # -----------------------------
-# Login on main page
+# Login
 # -----------------------------
 name, authentication_status, username = authenticator.login("Login", "main")
 
@@ -545,7 +554,6 @@ if authentication_status:
                     if not existing:
                         st.error("⚠️ Player ID not found!")
                     else:
-                        # Only update fields that are not empty
                         update_data = {}
                         if first_name.strip(): update_data["first_name"] = first_name
                         if surname.strip(): update_data["surname"] = surname
@@ -591,7 +599,7 @@ if authentication_status:
                 if delete_id.strip():
                     supabase.table("players").delete().eq("player_id", delete_id.strip()).execute()
                     st.success("✅ Player deleted successfully!")
-                    st.experimental_rerun()  # Auto-refresh
+                    st.experimental_rerun()
                 else:
                     st.error("Enter valid Player ID")
         else:
