@@ -491,58 +491,125 @@ if st.session_state.get("authentication_status"):
 # Admin panel main
 # -----------------------------
 
-st.title("🛠️ MFC Admin Panel")
-st.write("Manage your data directly from here:")
+st.title("⚽ MFC Admin Panel")
+st.caption("Use this dashboard to add data to your Supabase tables.")
 
+# -----------------------------
+# Select Table
+# -----------------------------
 table_choice = st.selectbox(
     "Select a table to manage:",
     ["Players", "Matches", "Match Events"]
 )
 
-# -----------------------------
-# 1️⃣ Players Table
-# -----------------------------
+# =======================================================
+# 🧍 PLAYERS FORM
+# =======================================================
 if table_choice == "Players":
-    st.subheader("👥 Player Management")
+    st.subheader("👥 Add New Player")
 
-    players = supabase.table("players").select("*").execute().data
-    st.dataframe(players, use_container_width=True)
+    with st.form("add_player_form", clear_on_submit=True):
+        first_name = st.text_input("First Name *")
+        surname = st.text_input("Surname *")
+        date_of_birth = st.date_input("Date of Birth *", value=date(2000, 1, 1))
+        nationality = st.text_input("Nationality *")
+        position = st.selectbox("Position *", ["", "Goalkeeper", "Defender", "Midfielder", "Forward"])
+        jersey_number = st.number_input("Jersey Number *", min_value=1, step=1)
+        height_cm = st.number_input("Height (cm)")
+        weight_kg = st.number_input("Weight (kg)")
+        submit_player = st.form_submit_button("➕ Add Player")
 
-    edited_players = st.data_editor(players, num_rows="dynamic", use_container_width=True)
+        if submit_player:
+            if not (first_name and surname and nationality and position):
+                st.error("⚠️ Please fill in all required fields marked with *")
+            else:
+                data = {
+                    "first_name": first_name,
+                    "surname": surname,
+                    "date_of_birth": str(date_of_birth),
+                    "nationality": nationality,
+                    "position": position,
+                    "jersey_number": int(jersey_number),
+                    "height_cm": int(height_cm) if height_cm else None,
+                    "weight_kg": int(weight_kg) if weight_kg else None
+                }
+                response = supabase.table("players").insert(data).execute()
+                if response.data:
+                    st.success(f"✅ Player '{first_name} {surname}' added successfully!")
+                else:
+                    st.error("❌ Failed to add player.")
 
-    if st.button("💾 Update Players"):
-        for row in edited_players:
-            supabase.table("players").update(row).eq("player_id", row["player_id"]).execute()
-        st.success("✅ Players updated successfully!")
-
-# -----------------------------
-# 2️⃣ Matches Table
-# -----------------------------
+# =======================================================
+# 🏟️ MATCHES FORM
+# =======================================================
 elif table_choice == "Matches":
-    st.subheader("⚽ Match Management")
+    st.subheader("🏆 Add New Match")
 
-    matches = supabase.table("matches").select("*").execute().data
-    st.dataframe(matches, use_container_width=True)
+    with st.form("add_match_form", clear_on_submit=True):
+        match_date = st.date_input("Match Date *", value=date.today())
+        opponent = st.text_input("Opponent *")
+        venue = st.text_input("Venue")
+        result = st.selectbox("Result", ["", "Win", "Loss", "Draw"])
+        score_mfc = st.number_input("Score (MFC)", min_value=0)
+        score_opponent = st.number_input("Score (Opponent)", min_value=0)
+        season = st.text_input("Season *", placeholder="e.g., 2024/2025")
+        submit_match = st.form_submit_button("➕ Add Match")
 
-    edited_matches = st.data_editor(matches, num_rows="dynamic", use_container_width=True)
+        if submit_match:
+            if not (match_date and opponent and season):
+                st.error("⚠️ Please fill in all required fields marked with *")
+            else:
+                data = {
+                    "match_date": str(match_date),
+                    "opponent": opponent,
+                    "venue": venue,
+                    "result": result,
+                    "score_mfc": int(score_mfc),
+                    "score_opponent": int(score_opponent),
+                    "season": season
+                }
+                response = supabase.table("matches").insert(data).execute()
+                if response.data:
+                    st.success(f"✅ Match vs {opponent} added successfully!")
+                else:
+                    st.error("❌ Failed to add match.")
 
-    if st.button("💾 Update Matches"):
-        for row in edited_matches:
-            supabase.table("matches").update(row).eq("match_id", row["match_id"]).execute()
-        st.success("✅ Matches updated successfully!")
-
-# -----------------------------
-# 3️⃣ Match Events Table
-# -----------------------------
+# =======================================================
+# ⚡ MATCH EVENTS FORM
+# =======================================================
 elif table_choice == "Match Events":
-    st.subheader("📋 Match Events Management")
+    st.subheader("⚡ Add Match Event")
 
-    events = supabase.table("match_events").select("*").execute().data
-    st.dataframe(events, use_container_width=True)
+    # Fetch matches & players to use as dropdowns
+    matches = supabase.table("matches").select("match_id, opponent").execute().data
+    players = supabase.table("players").select("player_id, first_name, surname").execute().data
 
-    edited_events = st.data_editor(events, num_rows="dynamic", use_container_width=True)
+    match_options = {m["opponent"]: m["match_id"] for m in matches} if matches else {}
+    player_options = {f"{p['first_name']} {p['surname']}": p["player_id"] for p in players} if players else {}
 
-    if st.button("💾 Update Events"):
-        for row in edited_events:
-            supabase.table("match_events").update(row).eq("event_id", row["event_id"]).execute()
-        st.success("✅ Match events updated successfully!")
+    with st.form("add_event_form", clear_on_submit=True):
+        match_selected = st.selectbox("Select Match *", [""] + list(match_options.keys()))
+        player_selected = st.selectbox("Select Player *", [""] + list(player_options.keys()))
+        event_type = st.text_input("Event Type *", placeholder="e.g., Goal, Assist, Yellow Card")
+        minute = st.number_input("Minute *", min_value=0, max_value=120)
+        description = st.text_area("Description")
+        season = st.text_input("Season *", placeholder="e.g., 2024/2025")
+        submit_event = st.form_submit_button("➕ Add Event")
+
+        if submit_event:
+            if not (match_selected and player_selected and event_type and season):
+                st.error("⚠️ Please fill in all required fields marked with *")
+            else:
+                data = {
+                    "match_id": match_options[match_selected],
+                    "player_id": player_options[player_selected],
+                    "event_type": event_type,
+                    "minute": int(minute),
+                    "description": description,
+                    "season": season
+                }
+                response = supabase.table("match_events").insert(data).execute()
+                if response.data:
+                    st.success(f"✅ {event_type} event added successfully!")
+                else:
+                    st.error("❌ Failed to add match event.")
