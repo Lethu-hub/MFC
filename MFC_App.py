@@ -483,14 +483,16 @@ authenticator = stauth.Authenticate(
 # Display login form in sidebar
 authenticator.login(location="sidebar")
 
-# Check if the user is authenticated
-if authenticator._authenticator.status:   # internal property
-    st.sidebar.success(f"Logged in as {authenticator._authenticator.name}")
+# Use session_state to check authentication
+if st.session_state.get("authentication_status"):
+    st.sidebar.success(f"Logged in as {st.session_state.get('name')}")
 
+    # Logout button
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
 
+    # Admin panel content
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
