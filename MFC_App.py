@@ -470,6 +470,16 @@ credentials = {
     }
 }
 
+# -----------------------------
+# Authenticator
+# -----------------------------
+authenticator = stauth.Authenticate(
+    credentials=credentials,
+    cookie_name="admin_cookie",
+    key="admin_key",
+    cookie_expiry_days=1
+)
+
 # Display login form in sidebar
 authenticator.login(location="sidebar")
 
