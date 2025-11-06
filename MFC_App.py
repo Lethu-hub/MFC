@@ -483,7 +483,7 @@ authenticator = stauth.Authenticate(
 # ==============================
 # Login
 # ==============================
-name, authentication_status, username = authenticator.login("Login", location="main")
+name, authentication_status, username = authenticator.login("Login")
 
 # ==============================
 # Authenticated block
@@ -491,10 +491,12 @@ name, authentication_status, username = authenticator.login("Login", location="m
 if authentication_status:
     st.sidebar.success(f"Logged in as {name}")
 
+    # Logout button
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
 
+    # Admin panel main
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
