@@ -490,98 +490,59 @@ if st.session_state.get("authentication_status"):
 # -----------------------------
 # Admin panel main
 # -----------------------------
-if st.session_state.get("authentication_status"):
-    st.success(f"Welcome {st.session_state['name']}")
-    st.title("🛠️ MFC Admin Dashboard")
 
-    st.sidebar.header("Manage Tables")
-    table_choice = st.sidebar.radio("Select Table", ["Players", "Matches", "Match Events"])
+st.title("🛠️ MFC Admin Panel")
+st.write("Manage your data directly from here:")
 
-    # =============================
-    # --- Players Table ---
-    # =============================
-    if table_choice == "Players":
-        players = supabase.table("players").select("*").execute().data or []
-        df_players = st.dataframe(players)  # view all players
-        edited_players = st.experimental_data_editor(players, num_rows="dynamic")
+table_choice = st.selectbox(
+    "Select a table to manage:",
+    ["Players", "Matches", "Match Events"]
+)
 
-        if st.button("Update Players"):
-            for row in edited_players:
-                supabase.table("players").update(row).eq("player_id", row["player_id"]).execute()
-            st.success("Players updated successfully!")
+# -----------------------------
+# 1️⃣ Players Table
+# -----------------------------
+if table_choice == "Players":
+    st.subheader("👥 Player Management")
 
-        if st.button("Add New Player"):
-            new_player = {
-                "player_id": str(uuid.uuid4()),
-                "first_name": "",
-                "surname": "",
-                "date_of_birth": str(date.today()),
-                "nationality": "",
-                "position": "",
-                "jersey_number": 0,
-                "height_cm": 0,
-                "weight_kg": 0
-            }
-            supabase.table("players").insert(new_player).execute()
-            st.experimental_rerun()
+    players = supabase.table("players").select("*").execute().data
+    st.dataframe(players, use_container_width=True)
 
-    # =============================
-    # --- Matches Table ---
-    # =============================
-    elif table_choice == "Matches":
-        matches = supabase.table("matches").select("*").execute().data or []
-        st.dataframe(matches)
-        edited_matches = st.experimental_data_editor(matches, num_rows="dynamic")
+    edited_players = st.data_editor(players, num_rows="dynamic", use_container_width=True)
 
-        if st.button("Update Matches"):
-            for row in edited_matches:
-                supabase.table("matches").update(row).eq("match_id", row["match_id"]).execute()
-            st.success("Matches updated successfully!")
+    if st.button("💾 Update Players"):
+        for row in edited_players:
+            supabase.table("players").update(row).eq("player_id", row["player_id"]).execute()
+        st.success("✅ Players updated successfully!")
 
-        if st.button("Add New Match"):
-            new_match = {
-                "match_id": str(uuid.uuid4()),
-                "match_date": str(date.today()),
-                "opponent": "",
-                "venue": "",
-                "result": "",
-                "score_mfc": 0,
-                "score_opponent": 0,
-                "season": ""
-            }
-            supabase.table("matches").insert(new_match).execute()
-            st.experimental_rerun()
+# -----------------------------
+# 2️⃣ Matches Table
+# -----------------------------
+elif table_choice == "Matches":
+    st.subheader("⚽ Match Management")
 
-    # =============================
-    # --- Match Events Table ---
-    # =============================
-    elif table_choice == "Match Events":
-        events = supabase.table("match_events").select("*").execute().data or []
-        st.dataframe(events)
-        edited_events = st.experimental_data_editor(events, num_rows="dynamic")
+    matches = supabase.table("matches").select("*").execute().data
+    st.dataframe(matches, use_container_width=True)
 
-        if st.button("Update Events"):
-            for row in edited_events:
-                supabase.table("match_events").update(row).eq("event_id", row["event_id"]).execute()
-            st.success("Match Events updated successfully!")
+    edited_matches = st.data_editor(matches, num_rows="dynamic", use_container_width=True)
 
-        if st.button("Add New Event"):
-            # Load players and matches for dropdown
-            players = supabase.table("players").select("*").execute().data or []
-            matches = supabase.table("matches").select("*").execute().data or []
+    if st.button("💾 Update Matches"):
+        for row in edited_matches:
+            supabase.table("matches").update(row).eq("match_id", row["match_id"]).execute()
+        st.success("✅ Matches updated successfully!")
 
-            if players and matches:
-                new_event = {
-                    "event_id": str(uuid.uuid4()),
-                    "player_id": players[0]["player_id"],
-                    "match_id": matches[0]["match_id"],
-                    "event_type": "Goal",
-                    "minute": 0,
-                    "description": "",
-                    "season": ""
-                }
-                supabase.table("match_events").insert(new_event).execute()
-                st.experimental_rerun()
-            else:
-                st.warning("Add at least one player and one match first.")
+# -----------------------------
+# 3️⃣ Match Events Table
+# -----------------------------
+elif table_choice == "Match Events":
+    st.subheader("📋 Match Events Management")
 
+    events = supabase.table("match_events").select("*").execute().data
+    st.dataframe(events, use_container_width=True)
+
+    edited_events = st.data_editor(events, num_rows="dynamic", use_container_width=True)
+
+    if st.button("💾 Update Events"):
+        for row in edited_events:
+            supabase.table("match_events").update(row).eq("event_id", row["event_id"]).execute()
+        st.success("✅ Match events updated successfully!")
