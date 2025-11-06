@@ -479,13 +479,17 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=1
 )
 
+# Call login first and get the status
+name, authentication_status, username = authenticator.login(
+    name="Login",
+    location="sidebar"
+)
+
 # -----------------------------
 # Authenticated block
 # -----------------------------
 if authentication_status:
     st.sidebar.success(f"Logged in as {name}")
-
-    # Logout button
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
