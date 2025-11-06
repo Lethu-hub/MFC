@@ -467,8 +467,7 @@ default_username = "admin"
 default_password = "MFCAdmin123"
 
 # Compatible with streamlit-authenticator 0.4.2
-hasher = stauth.Hasher()
-hashed_passwords = hasher.generate([default_password])
+hashed_passwords = stauth.hasher([default_password])
 
 credentials = {
     "usernames": {
@@ -685,7 +684,7 @@ if authentication_status:
             event_id = st.text_input("Event ID (Leave empty to add new)")
             match_id = st.text_input("Match ID")
             player_id = st.text_input("Player ID")
-            event_type = st.selectbox("Event Type", ["Goal", "Assist", "Foul", "Substitution", "Injury", "Card", "Other"])
+            event_type = st.selectbox("Event Type", ["", "Goal", "Assist", "Foul", "Substitution", "Injury", "Card", "Other"])
             minute = st.number_input("Minute", min_value=0, step=1)
             description = st.text_area("Description")
             season = st.text_input("Season")
@@ -698,8 +697,8 @@ if authentication_status:
                         st.error("⚠️ Event ID not found!")
                     else:
                         update_data = {}
-                        if match_id.strip(): update_data["match_id"] = match_id.strip()
-                        if player_id.strip(): update_data["player_id"] = player_id.strip()
+                        if match_id.strip(): update_data["match_id"] = match_id
+                        if player_id.strip(): update_data["player_id"] = player_id
                         if event_type.strip(): update_data["event_type"] = event_type
                         if minute: update_data["minute"] = int(minute)
                         if description.strip(): update_data["description"] = description
@@ -711,7 +710,7 @@ if authentication_status:
                             st.info("ℹ️ No fields to update.")
                 else:  # Add new
                     if not (match_id.strip() and player_id.strip() and event_type.strip()):
-                        st.error("⚠️ Fill required fields to add new event!")
+                        st.error("⚠️ Fill all required fields to add new event!")
                     else:
                         new_id = generate_event_id()
                         data = {
@@ -725,7 +724,7 @@ if authentication_status:
                         }
                         supabase.table("match_events").insert(data).execute()
                         st.success(f"✅ Event added with ID {new_id}!")
-                st.experimental_rerun()  # Auto-refresh
+                st.experimental_rerun()
 
         st.divider()
         st.subheader("📋 Manage Match Events")
@@ -746,6 +745,5 @@ if authentication_status:
 
 elif authentication_status == False:
     st.error("❌ Username/password is incorrect")
-
 elif authentication_status == None:
     st.info("ℹ️ Please enter your username and password")
