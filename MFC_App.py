@@ -470,33 +470,17 @@ credentials = {
     }
 }
 
-# ==============================
-# Authenticator setup
-# ==============================
-authenticator = stauth.Authenticate(
-    credentials=credentials,
-    cookie_name="admin_cookie",
-    key="admin_key",
-    cookie_expiry_days=1
-)
-
-# ==============================
-# Login
-# ==============================
+# Display login form in sidebar
 authenticator.login(location="sidebar")
 
-# ==============================
-# Authenticated block
-# ==============================
-if authentication_status:
-    st.sidebar.success(f"Logged in as {name}")
+# Check if the user is authenticated
+if authenticator._authenticator.status:   # internal property
+    st.sidebar.success(f"Logged in as {authenticator._authenticator.name}")
 
-    # Logout button in sidebar
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
 
-    # Admin panel main content
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
@@ -508,7 +492,5 @@ if authentication_status:
     elif table_choice == "Match Events":
         match_event_form(supabase)
 
-elif authentication_status is False:
-    st.error("❌ Username/password is incorrect")
-elif authentication_status is None:
-    st.info("ℹ️ Please enter your username and password")
+else:
+    st.info("ℹ️ Please log in to access the admin panel")
