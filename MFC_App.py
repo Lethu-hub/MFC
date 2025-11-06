@@ -447,12 +447,6 @@ elif page == "Predictions":
 # MFC Admin Panel - Streamlit
 # ==============================
 
-import streamlit as st
-import streamlit_authenticator as stauth
-from supabase import create_client, Client
-import uuid
-from datetime import date
-
 # -----------------------------
 # Supabase setup
 # -----------------------------
@@ -466,8 +460,11 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 default_username = "admin"
 default_password = "MFCAdmin123"
 
-# Compatible with streamlit-authenticator 0.4.2
-hashed_passwords = stauth.hasher([default_password])
+# -----------------------------
+# Streamlit Authenticator 0.4.2 compatible
+# -----------------------------
+hasher = stauth.Hasher([default_password])
+hashed_passwords = hasher.generate()
 
 credentials = {
     "usernames": {
