@@ -44,16 +44,13 @@ def player_form(supabase):
     players = supabase.table("players").select("*").execute().data
     if players:
         df_players = pd.DataFrame(players)
-        df_display = df_players.drop(columns=["player_id"], errors="ignore")
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(df_players, use_container_width=True)
 
-        delete_id = st.text_input("Enter Player ID to delete", placeholder="Paste UUID here", key="delete_player")
+        # Delete using a selectbox instead of manual ID input
+        delete_id = st.selectbox("Select Player to Delete", options=[p['player_id'] for p in players])
         if st.button("🗑️ Delete Player"):
-            if delete_id.strip():
-                supabase.table("players").delete().eq("player_id", delete_id.strip()).execute()
-                st.success("✅ Player deleted successfully! Refresh to update list.")
-            else:
-                st.error("Please enter a valid Player ID")
+            supabase.table("players").delete().eq("player_id", delete_id).execute()
+            st.success("✅ Player deleted successfully! Refresh to update list.")
     else:
         st.info("No players found.")
 
@@ -97,16 +94,12 @@ def match_form(supabase):
     matches = supabase.table("matches").select("*").execute().data
     if matches:
         df_matches = pd.DataFrame(matches)
-        df_display = df_matches.drop(columns=["match_id"], errors="ignore")
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(df_matches, use_container_width=True)
 
-        delete_id = st.text_input("Enter Match ID to delete", placeholder="Paste UUID here", key="delete_match")
+        delete_id = st.selectbox("Select Match to Delete", options=[m['match_id'] for m in matches])
         if st.button("🗑️ Delete Match"):
-            if delete_id.strip():
-                supabase.table("matches").delete().eq("match_id", delete_id.strip()).execute()
-                st.success("✅ Match deleted successfully! Refresh to update list.")
-            else:
-                st.error("Please enter a valid Match ID")
+            supabase.table("matches").delete().eq("match_id", delete_id).execute()
+            st.success("✅ Match deleted successfully! Refresh to update list.")
     else:
         st.info("No matches found.")
 
@@ -116,9 +109,12 @@ def match_form(supabase):
 # =========================
 def match_event_form(supabase):
     st.subheader("🎯 Add New Match Event")
+    players = supabase.table("players").select("*").execute().data
+    matches = supabase.table("matches").select("*").execute().data
+
     with st.form("add_event_form", clear_on_submit=True):
-        match_id = st.text_input("Match ID * (UUID from matches table)")
-        player_id = st.text_input("Player ID * (UUID from players table)")
+        match_id = st.selectbox("Match *", options=[f"{m['match_id']} vs {m['opponent']}" for m in matches])
+        player_id = st.selectbox("Player *", options=[f"{p['player_id']} - {p['first_name']} {p['surname']}" for p in players])
         event_type = st.selectbox("Event Type *", ["Goal", "Assist", "Foul", "Substitution", "Injury", "Card", "Other"])
         minute = st.number_input("Minute", min_value=0, step=1)
         description = st.text_area("Description")
@@ -126,37 +122,34 @@ def match_event_form(supabase):
         submit_event = st.form_submit_button("➕ Add Event")
 
         if submit_event:
-            if not (match_id and player_id and event_type):
-                st.error("⚠️ Please fill in all required fields marked with *")
+            # Extract IDs from selectbox strings
+            match_id_val = int(match_id.split()[0])
+            player_id_val = int(player_id.split()[0])
+
+            data = {
+                "match_id": match_id_val,
+                "player_id": player_id_val,
+                "event_type": event_type,
+                "minute": int(minute),
+                "description": description,
+                "season": season
+            }
+            response = supabase.table("match_events").insert(data).execute()
+            if response.data:
+                st.success("✅ Match event added successfully!")
             else:
-                data = {
-                    "match_id": match_id.strip(),
-                    "player_id": player_id.strip(),
-                    "event_type": event_type,
-                    "minute": int(minute),
-                    "description": description,
-                    "season": season
-                }
-                response = supabase.table("match_events").insert(data).execute()
-                if response.data:
-                    st.success("✅ Match event added successfully!")
-                else:
-                    st.error("❌ Failed to add event")
+                st.error("❌ Failed to add event")
 
     st.divider()
     st.subheader("📋 Manage Match Events")
     events = supabase.table("match_events").select("*").execute().data
     if events:
         df_events = pd.DataFrame(events)
-        df_display = df_events.drop(columns=["event_id"], errors="ignore")
-        st.dataframe(df_display, use_container_width=True)
+        st.dataframe(df_events, use_container_width=True)
 
-        delete_id = st.text_input("Enter Event ID to delete", placeholder="Paste UUID here", key="delete_event")
+        delete_id = st.selectbox("Select Event to Delete", options=[e['match_event_id'] for e in events])
         if st.button("🗑️ Delete Event"):
-            if delete_id.strip():
-                supabase.table("match_events").delete().eq("event_id", delete_id.strip()).execute()
-                st.success("✅ Event deleted successfully! Refresh to update list.")
-            else:
-                st.error("Please enter a valid Event ID")
+            supabase.table("match_events").delete().eq("match_event_id", delete_id).execute()
+            st.success("✅ Event deleted successfully! Refresh to update list.")
     else:
         st.info("No match events found.")
