@@ -483,10 +483,8 @@ authenticator = stauth.Authenticate(
 # ==============================
 # Login
 # ==============================
-name, authentication_status, username = authenticator.login(
-    name="Login",
-    location="main"
-)
+# For older versions, just pass the title as a positional argument
+name, authentication_status, username = authenticator.login("Login")
 
 # ==============================
 # Authenticated block
@@ -494,7 +492,7 @@ name, authentication_status, username = authenticator.login(
 if authentication_status:
     st.sidebar.success(f"Logged in as {name}")
 
-    # Logout button
+    # Logout button in sidebar
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
@@ -503,10 +501,7 @@ if authentication_status:
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
-    # Table selection
     table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
-
-    # Call the corresponding form from forms.py
     if table_choice == "Players":
         player_form(supabase)
     elif table_choice == "Matches":
