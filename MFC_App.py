@@ -483,7 +483,7 @@ authenticator = stauth.Authenticate(
 # ==============================
 # Login
 # ==============================
-name, authentication_status, username = authenticator.login("Login", location="sidebar")
+authenticator.login(location="sidebar")
 
 # ==============================
 # Authenticated block
