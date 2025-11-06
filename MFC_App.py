@@ -459,15 +459,13 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # -----------------------------
 default_username = "admin"
 default_password = "MFCAdmin123"
-
-# Hash the password
-hashed_password = stauth.Hasher().generate([default_password])
+hashed_password = stauth.Hasher().hash(default_password)
 
 credentials = {
     "usernames": {
         default_username: {
             "name": "Administrator",
-            "password": hashed_password[0]
+            "password": hashed_password
         }
     }
 }
@@ -476,269 +474,200 @@ credentials = {
 # Authenticator
 # -----------------------------
 authenticator = stauth.Authenticate(
-    credentials,
+    credentials=credentials,
     cookie_name="admin_cookie",
     key="admin_key",
     cookie_expiry_days=1
 )
 
-# -----------------------------
-# Login
-# -----------------------------
-name, authentication_status, username = authenticator.login(
-    name="Login",
-    location="main"  # Must be 'main', 'sidebar', or 'unrendered'
-)
+authenticator.login(location="sidebar")
 
-if authentication_status:
-    st.success(f"Welcome *{name}*! You are logged in as Admin.")
-
-    if st.button("Logout"):
-        authenticator.logout("main")
+# Logout
+if st.session_state.get("authentication_status"):
+    if st.sidebar.button("Logout"):
+        authenticator.logout("sidebar")
         st.experimental_rerun()
 
-    st.title("📊 MFC Admin Data Manager")
-    st.write("Add and manage players, matches, and match events.")
+# -----------------------------
+# Admin panel main
+# -----------------------------
 
-    # -----------------------------
-    # Utility functions
-    # -----------------------------
-    def generate_player_id():
-        result = supabase.table("players").select("player_id").order("player_id", desc=True).limit(1).execute()
-        last_id = result.data[0]['player_id'] if result.data else "0000"
-        return str(int(last_id) + 1).zfill(4)
+from datetime import date
+import pandas as pd
+import streamlit as st
 
-    def generate_match_id(match_date):
-        return f"{match_date.strftime('%y%m%d')}-{uuid.uuid4().hex[:4]}"
+# =======================================================
+# ⚽ Admin Database Manager
+# =======================================================
+st.title("📊 MFC Admin Data Manager")
+st.write("Add and manage players, matches, and match events.")
 
-    def generate_event_id():
-        return str(uuid.uuid4())
+# Choose which table to manage
+table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
 
-    def get_season(match_date):
-        year = match_date.year
-        month = match_date.month
-        if month >= 9:
-            return f"{year}/{year+1}"
-        else:
-            return f"{year-1}/{year}"
+# =======================================================
+# 🧍 PLAYERS CRUD
+# =======================================================
+if table_choice == "Players":
+    st.subheader("👥 Add New Player")
 
-    # -----------------------------
-    # Table selection
-    # -----------------------------
-    table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
+    with st.form("add_player_form", clear_on_submit=True):
+        first_name = st.text_input("First Name *")
+        surname = st.text_input("Surname *")
+        date_of_birth = st.date_input("Date of Birth *", value=date(2000, 1, 1))
+        nationality = st.text_input("Nationality *")
+        position = st.selectbox("Position *", ["", "Goalkeeper", "Defender", "Midfielder", "Forward"])
+        jersey_number = st.number_input("Jersey Number *", min_value=1, step=1)
+        height_cm = st.number_input("Height (cm)", min_value=0)
+        weight_kg = st.number_input("Weight (kg)", min_value=0)
+        submit_player = st.form_submit_button("➕ Add Player")
 
-    # =======================================================
-    # 🧍 PLAYERS CRUD
-    # =======================================================
-    if table_choice == "Players":
-        st.subheader("👥 Add / Update Player")
-        with st.form("player_form", clear_on_submit=False):
-            player_id = st.text_input("Player ID (Leave empty to add new)")
-            first_name = st.text_input("First Name")
-            surname = st.text_input("Surname")
-            date_of_birth = st.date_input("Date of Birth", value=date(2000, 1, 1))
-            nationality = st.text_input("Nationality")
-            position = st.selectbox("Position", ["", "Goalkeeper", "Defender", "Midfielder", "Forward"])
-            jersey_number = st.number_input("Jersey Number", min_value=0, step=1)
-            height_cm = st.number_input("Height (cm)", min_value=0)
-            weight_kg = st.number_input("Weight (kg)", min_value=0)
-            submit_player = st.form_submit_button("Submit")
-
-            if submit_player:
-                if player_id.strip():  # Update existing
-                    existing = supabase.table("players").select("*").eq("player_id", player_id.strip()).execute().data
-                    if not existing:
-                        st.error("⚠️ Player ID not found!")
-                    else:
-                        update_data = {}
-                        if first_name.strip(): update_data["first_name"] = first_name
-                        if surname.strip(): update_data["surname"] = surname
-                        if nationality.strip(): update_data["nationality"] = nationality
-                        if position.strip(): update_data["position"] = position
-                        if jersey_number: update_data["jersey_number"] = int(jersey_number)
-                        if height_cm: update_data["height_cm"] = int(height_cm)
-                        if weight_kg: update_data["weight_kg"] = int(weight_kg)
-                        update_data["date_of_birth"] = str(date_of_birth)
-                        if update_data:
-                            supabase.table("players").update(update_data).eq("player_id", player_id.strip()).execute()
-                            st.success(f"✅ Player '{player_id}' updated successfully!")
-                        else:
-                            st.info("ℹ️ No fields to update.")
-                else:  # Add new
-                    if not (first_name and surname and nationality and position):
-                        st.error("⚠️ Fill all required fields to add new player!")
-                    else:
-                        new_id = generate_player_id()
-                        data = {
-                            "player_id": new_id,
-                            "first_name": first_name,
-                            "surname": surname,
-                            "date_of_birth": str(date_of_birth),
-                            "nationality": nationality,
-                            "position": position,
-                            "jersey_number": int(jersey_number),
-                            "height_cm": int(height_cm),
-                            "weight_kg": int(weight_kg)
-                        }
-                        supabase.table("players").insert(data).execute()
-                        st.success(f"✅ Player '{first_name} {surname}' added with ID {new_id}!")
-                st.experimental_rerun()  # Auto-refresh table
-
-        st.divider()
-        st.subheader("📋 Manage Players")
-        players = supabase.table("players").select("*").execute().data
-        if players:
-            df_players = pd.DataFrame(players)
-            st.dataframe(df_players, use_container_width=True)
-            delete_id = st.text_input("Enter Player ID to delete", placeholder="Paste Player ID here", key="del_player")
-            if st.button("🗑️ Delete Player"):
-                if delete_id.strip():
-                    supabase.table("players").delete().eq("player_id", delete_id.strip()).execute()
-                    st.success("✅ Player deleted successfully!")
-                    st.experimental_rerun()
+        if submit_player:
+            if not (first_name and surname and nationality and position):
+                st.error("⚠️ Please fill in all required fields marked with *")
+            else:
+                data = {
+                    "first_name": first_name,
+                    "surname": surname,
+                    "date_of_birth": str(date_of_birth),
+                    "nationality": nationality,
+                    "position": position,
+                    "jersey_number": int(jersey_number),
+                    "height_cm": int(height_cm),
+                    "weight_kg": int(weight_kg)
+                }
+                response = supabase.table("players").insert(data).execute()
+                if response.data:
+                    st.success(f"✅ Player '{first_name} {surname}' added successfully!")
                 else:
-                    st.error("Enter valid Player ID")
-        else:
-            st.info("No players found.")
+                    st.error("❌ Failed to add player.")
 
-    # =======================================================
-    # 🏟️ MATCHES CRUD
-    # =======================================================
-    elif table_choice == "Matches":
-        st.subheader("🏆 Add / Update Match")
-        with st.form("match_form", clear_on_submit=False):
-            match_id = st.text_input("Match ID (Leave empty to add new)")
-            match_date = st.date_input("Match Date", value=date.today())
-            opponent = st.text_input("Opponent")
-            venue = st.text_input("Venue")
-            result = st.selectbox("Result", ["", "Win", "Loss", "Draw"])
-            score_mfc = st.number_input("MFC Score", min_value=0, step=1)
-            score_opponent = st.number_input("Opponent Score", min_value=0, step=1)
-            season = st.text_input("Season", value=get_season(match_date))
-            submit_match = st.form_submit_button("Submit")
+    st.divider()
+    st.subheader("📋 Manage Players")
 
-            if submit_match:
-                if match_id.strip():  # Update
-                    existing = supabase.table("matches").select("*").eq("match_id", match_id.strip()).execute().data
-                    if not existing:
-                        st.error("⚠️ Match ID not found!")
-                    else:
-                        update_data = {}
-                        if opponent.strip(): update_data["opponent"] = opponent
-                        if venue.strip(): update_data["venue"] = venue
-                        if result.strip(): update_data["result"] = result
-                        if score_mfc: update_data["score_mfc"] = int(score_mfc)
-                        if score_opponent: update_data["score_opponent"] = int(score_opponent)
-                        if season.strip(): update_data["season"] = season
-                        update_data["match_date"] = str(match_date)
-                        if update_data:
-                            supabase.table("matches").update(update_data).eq("match_id", match_id.strip()).execute()
-                            st.success(f"✅ Match '{match_id}' updated successfully!")
-                        else:
-                            st.info("ℹ️ No fields to update.")
-                else:  # Add new
-                    if not opponent.strip():
-                        st.error("⚠️ Fill required fields to add new match!")
-                    else:
-                        new_id = generate_match_id(match_date)
-                        data = {
-                            "match_id": new_id,
-                            "match_date": str(match_date),
-                            "opponent": opponent,
-                            "venue": venue,
-                            "result": result,
-                            "score_mfc": int(score_mfc),
-                            "score_opponent": int(score_opponent),
-                            "season": season
-                        }
-                        supabase.table("matches").insert(data).execute()
-                        st.success(f"✅ Match vs '{opponent}' added with ID {new_id}!")
-                st.experimental_rerun()  # Auto-refresh
+    players = supabase.table("players").select("*").execute().data
+    if players:
+        df_players = pd.DataFrame(players)
+        df_display = df_players.drop(columns=["player_id"], errors="ignore")
+        st.dataframe(df_display, use_container_width=True)
 
-        st.divider()
-        st.subheader("📋 Manage Matches")
-        matches = supabase.table("matches").select("*").execute().data
-        if matches:
-            df_matches = pd.DataFrame(matches)
-            st.dataframe(df_matches, use_container_width=True)
-            delete_id = st.text_input("Enter Match ID to delete", placeholder="Paste Match ID here", key="del_match")
-            if st.button("🗑️ Delete Match"):
-                if delete_id.strip():
-                    supabase.table("matches").delete().eq("match_id", delete_id.strip()).execute()
-                    st.success("✅ Match deleted successfully!")
-                    st.experimental_rerun()
+        delete_id = st.text_input("Enter Player ID to delete", placeholder="Paste UUID here")
+        if st.button("🗑️ Delete Player"):
+            if delete_id.strip():
+                supabase.table("players").delete().eq("player_id", delete_id.strip()).execute()
+                st.success("✅ Player deleted successfully! Refresh to update list.")
+            else:
+                st.error("Please enter a valid Player ID.")
+    else:
+        st.info("No players found.")
+
+
+# =======================================================
+# 🏟️ MATCHES CRUD
+# =======================================================
+elif table_choice == "Matches":
+    st.subheader("🏆 Add New Match")
+
+    with st.form("add_match_form", clear_on_submit=True):
+        match_date = st.date_input("Match Date *", value=date.today())
+        opponent = st.text_input("Opponent *")
+        venue = st.text_input("Venue")
+        result = st.selectbox("Result", ["", "Win", "Loss", "Draw"])
+        score_mfc = st.number_input("MFC Score", min_value=0, step=1)
+        score_opponent = st.number_input("Opponent Score", min_value=0, step=1)
+        season = st.text_input("Season (e.g., 2024/2025)")
+        submit_match = st.form_submit_button("➕ Add Match")
+
+        if submit_match:
+            if not (match_date and opponent):
+                st.error("⚠️ Please fill in all required fields marked with *")
+            else:
+                data = {
+                    "match_date": str(match_date),
+                    "opponent": opponent,
+                    "venue": venue,
+                    "result": result,
+                    "score_mfc": int(score_mfc),
+                    "score_opponent": int(score_opponent),
+                    "season": season
+                }
+                response = supabase.table("matches").insert(data).execute()
+                if response.data:
+                    st.success(f"✅ Match vs '{opponent}' added successfully!")
                 else:
-                    st.error("Enter valid Match ID")
-        else:
-            st.info("No matches found.")
+                    st.error("❌ Failed to add match.")
 
-    # =======================================================
-    # ⚡ MATCH EVENTS CRUD
-    # =======================================================
-    elif table_choice == "Match Events":
-        st.subheader("🎯 Add / Update Match Event")
-        with st.form("event_form", clear_on_submit=False):
-            event_id = st.text_input("Event ID (Leave empty to add new)")
-            match_id = st.text_input("Match ID")
-            player_id = st.text_input("Player ID")
-            event_type = st.selectbox("Event Type", ["", "Goal", "Assist", "Foul", "Substitution", "Injury", "Card", "Other"])
-            minute = st.number_input("Minute", min_value=0, step=1)
-            description = st.text_area("Description")
-            season = st.text_input("Season")
-            submit_event = st.form_submit_button("Submit")
+    st.divider()
+    st.subheader("📋 Manage Matches")
 
-            if submit_event:
-                if event_id.strip():  # Update
-                    existing = supabase.table("match_events").select("*").eq("event_id", event_id.strip()).execute().data
-                    if not existing:
-                        st.error("⚠️ Event ID not found!")
-                    else:
-                        update_data = {}
-                        if match_id.strip(): update_data["match_id"] = match_id
-                        if player_id.strip(): update_data["player_id"] = player_id
-                        if event_type.strip(): update_data["event_type"] = event_type
-                        if minute: update_data["minute"] = int(minute)
-                        if description.strip(): update_data["description"] = description
-                        if season.strip(): update_data["season"] = season
-                        if update_data:
-                            supabase.table("match_events").update(update_data).eq("event_id", event_id.strip()).execute()
-                            st.success(f"✅ Event '{event_id}' updated successfully!")
-                        else:
-                            st.info("ℹ️ No fields to update.")
-                else:  # Add new
-                    if not (match_id.strip() and player_id.strip() and event_type.strip()):
-                        st.error("⚠️ Fill all required fields to add new event!")
-                    else:
-                        new_id = generate_event_id()
-                        data = {
-                            "event_id": new_id,
-                            "match_id": match_id.strip(),
-                            "player_id": player_id.strip(),
-                            "event_type": event_type,
-                            "minute": int(minute),
-                            "description": description,
-                            "season": season
-                        }
-                        supabase.table("match_events").insert(data).execute()
-                        st.success(f"✅ Event added with ID {new_id}!")
-                st.experimental_rerun()
+    matches = supabase.table("matches").select("*").execute().data
+    if matches:
+        df_matches = pd.DataFrame(matches)
+        df_display = df_matches.drop(columns=["match_id"], errors="ignore")
+        st.dataframe(df_display, use_container_width=True)
 
-        st.divider()
-        st.subheader("📋 Manage Match Events")
-        events = supabase.table("match_events").select("*").execute().data
-        if events:
-            df_events = pd.DataFrame(events)
-            st.dataframe(df_events, use_container_width=True)
-            delete_id = st.text_input("Enter Event ID to delete", placeholder="Paste Event ID here", key="del_event")
-            if st.button("🗑️ Delete Event"):
-                if delete_id.strip():
-                    supabase.table("match_events").delete().eq("event_id", delete_id.strip()).execute()
-                    st.success("✅ Event deleted successfully!")
-                    st.experimental_rerun()
+        delete_id = st.text_input("Enter Match ID to delete", placeholder="Paste UUID here")
+        if st.button("🗑️ Delete Match"):
+            if delete_id.strip():
+                supabase.table("matches").delete().eq("match_id", delete_id.strip()).execute()
+                st.success("✅ Match deleted successfully! Refresh to update list.")
+            else:
+                st.error("Please enter a valid Match ID.")
+    else:
+        st.info("No matches found.")
+
+
+# =======================================================
+# ⚡ MATCH EVENTS CRUD
+# =======================================================
+elif table_choice == "Match Events":
+    st.subheader("🎯 Add New Match Event")
+
+    with st.form("add_event_form", clear_on_submit=True):
+        match_id = st.text_input("Match ID * (UUID from matches table)")
+        player_id = st.text_input("Player ID * (UUID from players table)")
+        event_type = st.selectbox("Event Type *", ["Goal", "Assist", "Foul", "Substitution", "Injury", "Card", "Other"])
+        minute = st.number_input("Minute", min_value=0, step=1)
+        description = st.text_area("Description")
+        season = st.text_input("Season")
+        submit_event = st.form_submit_button("➕ Add Event")
+
+        if submit_event:
+            if not (match_id and player_id and event_type):
+                st.error("⚠️ Please fill in all required fields marked with *")
+            else:
+                data = {
+                    "match_id": match_id.strip(),
+                    "player_id": player_id.strip(),
+                    "event_type": event_type,
+                    "minute": int(minute),
+                    "description": description,
+                    "season": season
+                }
+                response = supabase.table("match_events").insert(data).execute()
+                if response.data:
+                    st.success("✅ Match event added successfully!")
                 else:
-                    st.error("Enter valid Event ID")
-        else:
-            st.info("No match events found.")
+                    st.error("❌ Failed to add event.")
+
+    st.divider()
+    st.subheader("📋 Manage Match Events")
+
+    events = supabase.table("match_events").select("*").execute().data
+    if events:
+        df_events = pd.DataFrame(events)
+        df_display = df_events.drop(columns=["event_id"], errors="ignore")
+        st.dataframe(df_display, use_container_width=True)
+
+        delete_id = st.text_input("Enter Event ID to delete", placeholder="Paste UUID here")
+        if st.button("🗑️ Delete Event"):
+            if delete_id.strip():
+                supabase.table("match_events").delete().eq("event_id", delete_id.strip()).execute()
+                st.success("✅ Event deleted successfully! Refresh to update list.")
+            else:
+                st.error("Please enter a valid Event ID.")
+    else:
+        st.info("No match events found.")
 
 elif authentication_status == False:
     st.error("❌ Username/password is incorrect")
