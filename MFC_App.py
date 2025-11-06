@@ -483,8 +483,7 @@ authenticator = stauth.Authenticate(
 # ==============================
 # Login
 # ==============================
-# For older versions, just pass the title as a positional argument
-name, authentication_status, username = authenticator.login("Login")
+name, authentication_status, username = authenticator.login("Login", location="main")
 
 # ==============================
 # Authenticated block
@@ -492,12 +491,10 @@ name, authentication_status, username = authenticator.login("Login")
 if authentication_status:
     st.sidebar.success(f"Logged in as {name}")
 
-    # Logout button in sidebar
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
         st.experimental_rerun()
 
-    # Admin panel main
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
@@ -509,9 +506,6 @@ if authentication_status:
     elif table_choice == "Match Events":
         match_event_form(supabase)
 
-# ==============================
-# Login error/info
-# ==============================
 elif authentication_status is False:
     st.error("❌ Username/password is incorrect")
 elif authentication_status is None:
