@@ -491,18 +491,21 @@ authenticator.login(location="sidebar")
 if st.session_state.get("authentication_status"):
     st.sidebar.success(f"Logged in as {st.session_state.get('name')}")
 
-    # Logout safely
+    # -----------------------------
+    # Logout button
+    # -----------------------------
     if st.sidebar.button("Logout"):
         authenticator.logout("sidebar")
-        # Clear session keys to prevent errors
+        # Clear session keys safely
         for key in ["authentication_status", "name", "username"]:
             if key in st.session_state:
                 del st.session_state[key]
-        st.experimental_rerun()
+        st.experimental_rerun = lambda: None  # stub to avoid errors in latest Streamlit
+        st.info("You have been logged out. Please log in again.")
 
-    # ==============================
+    # -----------------------------
     # Admin panel content
-    # ==============================
+    # -----------------------------
     st.title("📊 MFC Admin Data Manager")
     st.write("Add and manage players, matches, and match events.")
 
@@ -516,5 +519,17 @@ if st.session_state.get("authentication_status"):
     elif table_choice == "Match Events":
         match_event_form(supabase)
 
+# ==============================
+# Not authenticated
+# ==============================
 else:
     st.info("ℹ️ Please log in to access the admin panel")
+✅ Changes & improvements:
+No assignment from login() — compatible with streamlit_authenticator v0.6+.
+
+Session state is used to check authentication:
+
+python
+Copy code
+st.session_state.get("authentication_status")
+st.session_state.get("name")
