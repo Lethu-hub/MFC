@@ -476,7 +476,6 @@ credentials = {
         }
     }
 }
-✅ Key points:
 
 # -----------------------------
 # Authenticator
