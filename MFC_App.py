@@ -501,6 +501,29 @@ import streamlit as st
 st.title("📊 MFC Admin Data Manager")
 st.write("Add and manage players, matches, and match events.")
 
+
+# -----------------------------
+# Utility functions
+# -----------------------------
+def generate_player_id():
+    # Get the last player_id from supabase
+    result = supabase.table("players").select("player_id").order("player_id", desc=True).limit(1).execute()
+    last_id = result.data[0]['player_id'] if result.data else "0000"
+    new_id = str(int(last_id) + 1).zfill(4)
+    return new_id
+
+def generate_match_id(match_date):
+    # Format YYMMDD
+    return match_date.strftime("%y%m%d")
+
+def get_season(match_date):
+    year = match_date.year
+    month = match_date.month
+    if month >= 9:
+        return f"{year}/{year+1}"
+    else:
+        return f"{year-1}/{year}"
+
 # Choose which table to manage
 table_choice = st.selectbox("Select Table", ["Players", "Matches", "Match Events"])
 
