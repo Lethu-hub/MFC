@@ -524,12 +524,3 @@ if st.session_state.get("authentication_status"):
 # ==============================
 else:
     st.info("ℹ️ Please log in to access the admin panel")
-✅ Changes & improvements:
-No assignment from login() — compatible with streamlit_authenticator v0.6+.
-
-Session state is used to check authentication:
-
-python
-Copy code
-st.session_state.get("authentication_status")
-st.session_state.get("name")
