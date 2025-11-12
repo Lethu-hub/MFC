@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Statistics", "Performance", "Predictions","Admin"])
+page = st.sidebar.radio("Go to", ["Home", "Statistics", "Performance", "Admin"])
 
 # ==========================
 # Home Page
@@ -381,67 +381,6 @@ elif page == "Performance":
                     )
                     st.plotly_chart(full_fig, use_container_width=True)
                     
-# ==========================
-# Predictions Page
-# ==========================
-elif page == "Predictions":
-    st.title("📊 Weekly Event Predictions")
-    st.markdown(
-        "Predicted counts for each event type on a weekly basis based on historical match data."
-    )
-
-    import plotly.express as px
-    from event_predictor import EventPredictor
-
-    # Initialize the predictor
-    predictor = EventPredictor(model_dir=".")
-    model_events = predictor.list_models()  # auto-list all available models
-
-    if not model_events:
-        st.warning("⚠️ No trained models found in the current folder.")
-        st.stop()
-
-    st.write(f"Found models for: {', '.join(model_events)}")
-
-    # Layout
-    num_cols = 3
-    cols = st.columns(num_cols)
-    future_weeks = list(range(1, 5))  # predict next 4 weeks
-
-    # Loop through each event and create mini charts
-    for i, event in enumerate(model_events):
-        # Determine last known value
-        try:
-            last_value = predictor.events_df[
-                predictor.events_df['Event_Type'] == event
-            ].shape[0]  # fallback to total counts if you don't have per-week
-        except:
-            last_value = 5
-
-        # Generate predictions
-        predictions = []
-        lag_value = last_value
-        for week in future_weeks:
-            pred = predictor.predict(event, last_value=lag_value)
-            pred = max(0, round(pred))
-            predictions.append(pred)
-            lag_value = pred
-
-        # Build dataframe for plotting
-        df_plot = pd.DataFrame({
-            "Week": future_weeks,
-            "Predicted_Count": predictions
-        })
-
-        # Create mini chart in column
-        col = cols[i % num_cols]
-        with col:
-            with st.expander(f"{event} — click to expand"):
-                fig = px.line(df_plot, x="Week", y="Predicted_Count",
-                              text="Predicted_Count", title=event, markers=True)
-                fig.update_traces(textposition="top center")
-                st.plotly_chart(fig, use_container_width=True)
-
 
 # ==============================
 # MFC Admin Panel - Streamlit
@@ -451,7 +390,7 @@ elif page == "Admin":
     # Supabase setup
     # -----------------------------
     SUPABASE_URL = "https://nghahpnwtgqdfokrljhb.supabase.co"
-    SUPABASE_KEY = "YOUR_KEY_HERE"
+    SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5naGFocG53dGdxZGZva3JsamhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2OTAxODIsImV4cCI6MjA3NzI2NjE4Mn0.35qPtuRd5_BqBZlBFHI6J7f0naJCgNYf5TmalBIN1FE"
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     # -----------------------------
