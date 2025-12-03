@@ -1,0 +1,36 @@
+-- Players Table
+create table players (
+  player_id uuid primary key default gen_random_uuid(),
+  first_name text not null,
+  surname text not null,
+  date_of_birth date not null,
+  nationality text,
+  position text,
+  jersey_number int,
+  height_cm int,
+  weight_kg int
+);
+
+-- Matches Table
+create table matches (
+  match_id uuid primary key default gen_random_uuid(),
+  match_date date not null,
+  opponent text not null,
+  venue text,
+  result text,
+  score_mfc int,
+  score_opponent int,
+  season text
+);
+
+-- Match Events Table
+create table match_events (
+  event_id uuid primary key default gen_random_uuid(),
+  match_id uuid references matches(match_id) on delete cascade,
+  player_id uuid references players(player_id) on delete cascade,
+  event_type text not null,
+  minute int,
+  description text,
+  season text
+);
+
